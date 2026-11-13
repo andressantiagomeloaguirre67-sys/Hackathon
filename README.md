@@ -4,14 +4,30 @@ Aplicación web construida en **Python + Django** (sin modelos ni base de datos 
 
 ---
 
-## 1. Fuente de Datos Oficial
+## Enlaces Reales en GitHub
 
-* **Nombre del conjunto de datos:** Espacios de las Artes, las Culturas y los Saberes
-* **Identificador Socrata:** `te39-v28f`
-* **Entidad publicadora:** Ministerio de las Culturas, las Artes y los Saberes (MinCultura) — Bogotá D.C.
+* **Repositorio remoto:** https://github.com/andressantiagomeloaguirre67-sys/Hackathon
+* **Rama principal (`main`):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/tree/main
+* **Rama de mejora abierta para Pull Request (`feature/improve-empty-states`):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/tree/feature/improve-empty-states
+* **Enlace directo del Pull Request (`main...feature/improve-empty-states`, pendiente de revisión y fusión):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/compare/main...feature/improve-empty-states?expand=1
+* **Issues del repositorio (textos listos en [`docs/github/issues.md`](docs/github/issues.md)):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues
+* **GitHub Projects del repositorio (estructura en [`docs/github/project.md`](docs/github/project.md)):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/projects
+
+---
+
+## 1. Fuente de Datos Oficial (Verificada en `/api/views/te39-v28f.json`)
+
+Datos verificados directamente desde https://www.datos.gov.co/api/views/te39-v28f.json:
+
+* **Nombre del conjunto de datos (`name`):** `Espacios de las Artes, las Culturas y los Saberes`
+* **Identificador Socrata (`id`):** `te39-v28f`
+* **Entidad publicadora (`attribution`):** `Ministerio de las Culturas, las Artes y los Saberes - MinCultura, Bogotá D.C.`
+* **Autor de la tabla (`tableAuthor.displayName`):** `Ministerio de las Culturas, las Artes y los Saberes - Oficina de Planeacion`
+* **Fecha de última actualización de filas (`rowsUpdatedAt`):** `1794547256` → **`2026-11-13 05:20:56 UTC`** (`viewLastModified`: `1794547225` → `2026-11-13 05:20:25 UTC`)
+* **Fecha de publicación (`publicationDate`):** `1778790821` → `2026-05-14 20:33:41 UTC`
 * **URL en el portal de Datos Abiertos:** https://www.datos.gov.co/Cultura/Espacios-de-las-Artes-las-Culturas-y-los-Saberes/te39-v28f
 * **Endpoint API Socrata (JSON):** `https://www.datos.gov.co/resource/te39-v28f.json`
-* **Respaldo local real (contingencia sin conexión):** `/data/cultural_spaces_sample.csv` (muestra real descargada directamente del endpoint oficial `te39-v28f.csv`).
+* **Respaldo local real (contingencia sin conexión):** `/data/cultural_spaces_sample.csv` (muestra real descargada del endpoint `te39-v28f.csv`).
 
 ---
 
@@ -23,9 +39,10 @@ Aplicación web construida en **Python + Django** (sin modelos ni base de datos 
 
 ### Pasos de instalación
 
-1. **Clonar o ubicarse en la carpeta del repositorio:**
+1. **Clonar el repositorio y entrar al directorio:**
    ```bash
-   cd /home/andres/Proyectos/Hackaton
+   git clone https://github.com/andressantiagomeloaguirre67-sys/Hackathon.git
+   cd Hackathon
    ```
 
 2. **Crear y activar el entorno virtual (`venv`):**
@@ -39,12 +56,17 @@ Aplicación web construida en **Python + Django** (sin modelos ni base de datos 
    pip install -r requirements.txt
    ```
 
-4. **Ejecutar la suite de pruebas automatizadas (`test`):**
+4. **Verificar la configuración de Django (`check`):**
+   ```bash
+   python manage.py check
+   ```
+
+5. **Ejecutar la suite de pruebas automatizadas (`test`):**
    ```bash
    python manage.py test -v 2
    ```
 
-5. **Iniciar el servidor de desarrollo (`runserver`):**
+6. **Iniciar el servidor de desarrollo (`runserver`):**
    ```bash
    python manage.py runserver
    ```
@@ -59,7 +81,7 @@ Aplicación web construida en **Python + Django** (sin modelos ni base de datos 
 ├── config/
 │   ├── __init__.py
 │   ├── asgi.py
-│   ├── settings.py          # Configuración Django sin base de datos ni secretos en el repo
+│   ├── settings.py          # Configuración Django sin base de datos ni secretos reales en el repo
 │   ├── urls.py              # Enrutador raíz
 │   └── wsgi.py
 ├── cultural_spaces/
@@ -78,7 +100,7 @@ Aplicación web construida en **Python + Django** (sin modelos ni base de datos 
 │   └── github/
 │       ├── issues.md        # Issues del Product Backlog (#1, #2, #3)
 │       ├── project.md       # Configuración y estado real del GitHub Project
-│       └── pull_requests.md # Registro de Pull Requests revisados e integrados
+│       └── pull_requests.md # Descripción del Pull Request abierto (pendiente de revisión)
 ├── manage.py
 ├── requirements.txt         # Versiones fijadas (Django==6.1.3, requests==2.34.2, etc.)
 └── README.md
@@ -90,7 +112,7 @@ Aplicación web construida en **Python + Django** (sin modelos ni base de datos 
 
 * **Problema (hipótesis, no hecho confirmado):** Se plantea como **hipótesis** que ciudadanos, estudiantes, turistas y gestores culturales en Colombia tienen dificultades para encontrar en un solo lugar qué espacios culturales, bibliotecas, museos o escenarios artísticos existen en su municipio o departamento, dado que la información proviene de múltiples registros técnicos sectoriales (PULEP, Red Nacional de Bibliotecas Públicas, SIMCO, SIlep, ICANH).
 * **Usuario objetivo:** Ciudadanos, estudiantes, docentes, investigadores, turistas y gestores culturales en Colombia.
-* **Fuente:** [Espacios de las Artes, las Culturas y los Saberes (`te39-v28f`)](https://www.datos.gov.co/resource/te39-v28f.json) — **Ministerio de las Culturas, las Artes y los Saberes (MinCultura)**, con **29.961 registros** verificados y última actualización del `2026-11-13`.
+* **Fuente:** [Espacios de las Artes, las Culturas y los Saberes (`te39-v28f`)](https://www.datos.gov.co/resource/te39-v28f.json) — **Ministerio de las Culturas, las Artes y los Saberes - MinCultura, Bogotá D.C.** (`rowsUpdatedAt`: `2026-11-13 05:20:56 UTC`, **29.961 registros** verificados con `$select=count(*)`).
 * **Campos usados:** `nombre_del_lugar`, `tipo_lugar`, `departamento`, `municipio`, `direcci_n_f_sica`, `descripci_n`, `fuente` y `divipola`.
 * **Funcionalidad principal:** **Buscar, filtrar y resumir** espacios culturales por palabra clave en el nombre, municipio, departamento y tipo de lugar.
 * **Limitaciones:**
@@ -131,12 +153,13 @@ Permitir que cualquier ciudadano o gestor cultural en Colombia descubra de forma
 ### Sprint Goal
 Entregar un recorrido web completo y verificado en Django que permita buscar, filtrar de forma segura y resumir espacios culturales reales de Colombia desde la API de `datos.gov.co`, manejando entradas vacías, búsquedas sin resultados, registros incompletos y contingencias de red.
 
-### Sprint Backlog
-* **Objetivo:** Completar e integrar en `main` los PBIs #1, #2 y #3 con pruebas unitarias y manuales verificadas.
-* **Ramas ejecutadas e integradas:**
-  * `feature/cultural-spaces-listing` → `main` (PR #1, `Refs #1`)
-  * `feature/search-and-filter` → `main` (PR #2, `Refs #2`)
-  * `feature/results-summary` → `main` (PR #3, `Refs #3`)
+### Sprint Backlog y Estado en GitHub
+* **Ramas subidas en `origin` (`https://github.com/andressantiagomeloaguirre67-sys/Hackathon`):**
+  * `main`: Contiene la aplicación base funcional y las pruebas iniciales.
+  * `feature/cultural-spaces-listing`: Implementación inicial del PBI #1.
+  * `feature/search-and-filter`: Implementación de búsqueda y filtrado SoQL del PBI #2.
+  * `feature/results-summary`: Implementación de resumen estadístico y suite de pruebas del PBI #3.
+  * `feature/improve-empty-states`: Rama con mejora adicional de manejo de datos incompletos, acotamiento de `$limit` y detalle de filtros en búsquedas vacías (`Refs #2`), **pendiente de revisión y fusión en Pull Request**.
 
 ---
 
@@ -144,60 +167,62 @@ Entregar un recorrido web completo y verificado en Django que permita buscar, fi
 
 - [x] **Django inicia sin errores:** Verificado con `.venv/bin/python manage.py check` (`System check identified no issues (0 silenced)`).
 - [x] **El recorrido se completa en el navegador:** Verificado levantando `python manage.py runserver` y ejecutando consultas reales de inicio, filtrado por departamento/tipo, entrada vacía, cero coincidencias y comillas simples.
-- [x] **Datos reales con fuente identificada:** Consume en vivo `https://www.datos.gov.co/resource/te39-v28f.json` (MinCultura) y muestra atribución en encabezado y pie de página.
-- [x] **Criterios de aceptación cumplidos:** Los 3 PBIs cumplen todos sus criterios de aceptación.
+- [x] **Datos reales con fuente identificada:** Consume en vivo `https://www.datos.gov.co/resource/te39-v28f.json` (`Ministerio de las Culturas, las Artes y los Saberes - MinCultura, Bogotá D.C.`) y muestra atribución en encabezado y pie de página.
+- [x] **Criterios de aceptación cumplidos en el código:** Los 3 PBIs cumplen todos sus criterios técnicos y funcionales.
 - [x] **Entradas inválidas o resultados vacíos no rompen la app:** Comprobado con entradas en blanco, comillas simples (`O'Higgins' OR '1'='1`), búsquedas sin coincidencias y registros con valores `None` / `"Sin Dato"`.
-- [x] **Se ejecutó una prueba real:** Ejecutados los 6 tests automatizados (`python manage.py test -v 2`) y la prueba manual contra el servidor en ejecución.
-- [x] **Cambios revisados e integrados en `main`:** Ramas por PBI fusionadas a `main` mediante commits de merge (`--no-ff`) con referencia `Refs #N`.
+- [x] **Se ejecutó una prueba real:** Ejecutados los tests automatizados (`python manage.py test -v 2`) y la prueba manual con `runserver`.
 - [x] **`README.md` permite instalar y ejecutar:** Incluye instrucciones paso a paso verificadas.
-- [x] **Issues y Project reflejan el estado real:** Documentados y actualizados a `Done` en `/docs/github/project.md`, `/docs/github/issues.md` y `/docs/github/pull_requests.md` (nota de transparencia: `gh` CLI no está instalado en el entorno local, por lo que no se crearon en un servidor remoto de GitHub sino que quedaron listos en `/docs/github/`).
+- [ ] **Cambios revisados por un par e integrados mediante PR en GitHub (Pendiente):** La rama `feature/improve-empty-states` está subida en el remoto y **pendiente de revisión por un compañero y posterior fusión a `main`**.
+- [ ] **Issues y GitHub Project creados en la interfaz remota de GitHub (Pendiente):** Al no estar autenticado `gh auth login` en este entorno, los textos completos quedaron listos en [`docs/github/issues.md`](docs/github/issues.md) y [`docs/github/project.md`](docs/github/project.md) pendientes de crearse en GitHub tras ejecutar `gh auth login`.
 
 ---
 
 ## 7. Resultado Real de las Pruebas
 
-### 7.1 Pruebas Automatizadas (`python manage.py test -v 2`)
-Comando ejecutado:
-```bash
-.venv/bin/python manage.py test -v 2
-```
-Salida real obtenida:
+### 7.1 Pruebas Automatizadas en `main` (Antes del cambio en `feature/improve-empty-states`)
 ```text
 Found 6 test(s).
 Skipping setup of unused database(s): default.
 System check identified no issues (0 silenced).
-test_api_failure_falls_back_to_local_csv (cultural_spaces.tests.CulturalSpacesTests.test_api_failure_falls_back_to_local_csv)
-Verify network errors fall back gracefully to /data/cultural_spaces_sample.csv. ... ok
-test_empty_input_submission_has_defined_behavior (cultural_spaces.tests.CulturalSpacesTests.test_empty_input_submission_has_defined_behavior)
-Case 3 (Empty input): submitting blank/whitespace filters shows general results and notice. ... ok
-test_incomplete_record_does_not_break_interface (cultural_spaces.tests.CulturalSpacesTests.test_incomplete_record_does_not_break_interface)
-Case 4 (Incomplete data): missing, None, or 'Sin Dato' fields use safe defaults without crashing. ... ok
-test_no_matches_renders_clear_empty_message (cultural_spaces.tests.CulturalSpacesTests.test_no_matches_renders_clear_empty_message)
-Case 2 (No matches): displays a clear Spanish message when search returns zero records. ... ok
-test_normal_search_renders_matching_spaces_and_summary (cultural_spaces.tests.CulturalSpacesTests.test_normal_search_renders_matching_spaces_and_summary)
-Case 1 (Normal search): returns matching spaces, summary indicators, and source attribution. ... ok
-test_soql_where_sanitizes_single_quotes_and_injection (cultural_spaces.tests.CulturalSpacesTests.test_soql_where_sanitizes_single_quotes_and_injection)
-Verify user input single quotes are escaped before building $where. ... ok
+test_api_failure_falls_back_to_local_csv (cultural_spaces.tests.CulturalSpacesTests.test_api_failure_falls_back_to_local_csv) ... ok
+test_empty_input_submission_has_defined_behavior (cultural_spaces.tests.CulturalSpacesTests.test_empty_input_submission_has_defined_behavior) ... ok
+test_incomplete_record_does_not_break_interface (cultural_spaces.tests.CulturalSpacesTests.test_incomplete_record_does_not_break_interface) ... ok
+test_no_matches_renders_clear_empty_message (cultural_spaces.tests.CulturalSpacesTests.test_no_matches_renders_clear_empty_message) ... ok
+test_normal_search_renders_matching_spaces_and_summary (cultural_spaces.tests.CulturalSpacesTests.test_normal_search_renders_matching_spaces_and_summary) ... ok
+test_soql_where_sanitizes_single_quotes_and_injection (cultural_spaces.tests.CulturalSpacesTests.test_soql_where_sanitizes_single_quotes_and_injection) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.021s
+Ran 6 tests in 0.019s
 
 OK
 ```
 
-### 7.2 Prueba Manual con `python manage.py runserver` y Datos Reales en Vivo
-Se inició el servidor local en `127.0.0.1:8000` y se verificaron los casos contra `datos.gov.co`:
+### 7.2 Pruebas Automatizadas en `feature/improve-empty-states` (Después del cambio)
+```text
+Found 7 test(s).
+Skipping setup of unused database(s): default.
+System check identified no issues (0 silenced).
+test_api_failure_falls_back_to_local_csv (cultural_spaces.tests.CulturalSpacesTests.test_api_failure_falls_back_to_local_csv) ... ok
+test_empty_input_submission_has_defined_behavior (cultural_spaces.tests.CulturalSpacesTests.test_empty_input_submission_has_defined_behavior) ... ok
+test_extended_placeholders_and_invalid_limit_are_handled_safely (cultural_spaces.tests.CulturalSpacesTests.test_extended_placeholders_and_invalid_limit_are_handled_safely) ... ok
+test_incomplete_record_does_not_break_interface (cultural_spaces.tests.CulturalSpacesTests.test_incomplete_record_does_not_break_interface) ... ok
+test_no_matches_renders_clear_empty_message (cultural_spaces.tests.CulturalSpacesTests.test_no_matches_renders_clear_empty_message) ... ok
+test_normal_search_renders_matching_spaces_and_summary (cultural_spaces.tests.CulturalSpacesTests.test_normal_search_renders_matching_spaces_and_summary) ... ok
+test_soql_where_sanitizes_single_quotes_and_injection (cultural_spaces.tests.CulturalSpacesTests.test_soql_where_sanitizes_single_quotes_and_injection) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.022s
+
+OK
+```
+
+### 7.3 Prueba Manual con `python manage.py runserver` y Datos Reales en Vivo
 ```text
 Home / Initial list: HTTP 200 | Cards rendered: 40 | Attribution present: True
 Normal filter (Antioquia + Biblioteca): HTTP 200 | Cards rendered: 40 | Attribution present: True
 Empty input submission: HTTP 200 | Cards rendered: 40 | Attribution present: True
 Zero matches: HTTP 200 | Cards rendered: 0 | Attribution present: True
 Single quote sanitization: HTTP 200 | Cards rendered: 0 | Attribution present: True
-[13/Nov/2026 14:02:06] "GET / HTTP/1.1" 200 45556
-[13/Nov/2026 14:02:12] "GET /?departamento=Antioquia&tipo_lugar=Biblioteca HTTP/1.1" 200 38844
-[13/Nov/2026 14:02:20] "GET /?q=+++&municipio=&departamento=&tipo_lugar= HTTP/1.1" 200 40178
-[13/Nov/2026 14:02:23] "GET /?q=Inexistente999XYZ HTTP/1.1" 200 15839
-[13/Nov/2026 14:02:23] "GET /?q=O%27Higgins HTTP/1.1" 200 15836
 ```
 
 ---
@@ -205,9 +230,9 @@ Single quote sanitization: HTTP 200 | Cards rendered: 0 | Attribution present: T
 ## 8. Retrospectiva del Sprint
 
 * **Qué funcionó bien:**
-  * La separación estricta entre la vista (`views.py`) y la capa de servicios (`services.py`) permitió implementar el saneamiento SoQL (`$where`), la normalización de registros incompletos y el respaldo CSV local en un solo punto fácil de probar con `SimpleTestCase` sin requerir base de datos.
-  * Validar primero los metadatos y las muestras reales de `datos.gov.co` en el Paso 1 garantizó elegir un dataset actualizado (`te39-v28f`) con columnas limpias para filtrar (`departamento`, `municipio`, `tipo_lugar`, `nombre_del_lugar`).
+  * La separación entre `views.py` y `services.py` permitió encapsular el saneamiento de `$where`, la limpieza de datos incompletos y el respaldo CSV local en funciones puras, logrando pruebas unitarias rápidas (`~0.02s`) sin requerir base de datos.
+  * El uso de la clave SSH local permitió subir el repositorio y todas las ramas a GitHub sin exponer tokens ni credenciales en ningún archivo del proyecto.
 * **Qué obstáculo hubo:**
-  * En el entorno de desarrollo no estaba instalada la herramienta `gh` CLI ni existía un repositorio remoto configurado en GitHub, además de diferencias de capitalización y tildes en los nombres de municipios dentro de Socrata.
-* **Acción concreta de mejora para el siguiente Sprint:**
-  * Incorporar paginación (`$offset` y `$limit`) en la interfaz y autocompletado dinámico de municipios por departamento consultando una agregación ligera (`$select=municipio&$group=municipio`) con caché en memoria para evitar errores de escritura con tildes.
+  * Aunque el acceso SSH a GitHub estaba activo para `git push`, el cliente `gh` CLI no tenía una sesión OAuth iniciada (`gh auth login`), lo que impidió crear automáticamente los Issues, el Project y el Pull Request mediante la API de GitHub sin intervención manual en el navegador.
+* **Acción concreta de mejora:**
+  * Verificar tanto `ssh -T git@github.com` como `gh auth status` al inicio del Sprint (Paso 1) antes de comenzar la codificación para asegurar que la automatización de tableros e issues esté disponible desde el primer commit.

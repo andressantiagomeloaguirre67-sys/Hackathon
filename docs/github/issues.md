@@ -1,10 +1,12 @@
-# Issues del Product Backlog (Listos para copiar en GitHub)
+# Issues del Product Backlog (Textos listos para crear en GitHub)
+
+* **URL de Issues del repositorio:** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues
 
 ---
 
 ## Issue #1: Consulta de espacios culturales reales y manejo resiliente de datos
 
-* **Estado en Project:** `Done` (verificado con DoD e integrado en `main` vía PR #1 — `Refs #1`)
+* **Estado sugerido en Project:** `In Progress` (código verificado localmente; pendiente crear el issue en GitHub)
 * **Prioridad (`Priority`):** `High`
 * **Etiquetas sugeridas:** `feature`, `pbi-1`, `high-priority`
 
@@ -26,7 +28,7 @@ Los ciudadanos y gestores culturales necesitan consultar en una interfaz web cla
 
 ## Issue #2: Búsqueda y filtrado seguro por municipio, departamento, tipo de espacio y nombre
 
-* **Estado en Project:** `Done` (verificado con DoD e integrado en `main` vía PR #2 — `Refs #2`)
+* **Estado sugerido en Project:** `In Review` (tiene cambio abierto en la rama `feature/improve-empty-states` pendiente de revisión de PR con `Refs #2`)
 * **Prioridad (`Priority`):** `High`
 * **Etiquetas sugeridas:** `feature`, `pbi-2`, `high-priority`, `security`
 
@@ -48,7 +50,7 @@ El dataset `te39-v28f` cuenta con 29.961 registros en toda Colombia. Para que el
 
 ## Issue #3: Resumen estadístico rápido de los resultados consultados
 
-* **Estado en Project:** `Done` (verificado con DoD e integrado en `main` vía PR #3 — `Refs #3`)
+* **Estado sugerido en Project:** `In Progress` (código y pruebas verificados localmente; pendiente crear el issue en GitHub)
 * **Prioridad (`Priority`):** `Medium`
 * **Etiquetas sugeridas:** `feature`, `pbi-3`, `medium-priority`
 
