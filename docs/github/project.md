@@ -22,8 +22,8 @@
 
 ## 2. Estado Real del Tablero (según la DoD actual)
 
-| Issue | Título | Priority | Rama en GitHub | Estado real (`Status`) | Motivo del estado |
+| Issue | Título | Priority | Rama en GitHub | Estado real (`Status`) | Enlace real |
 |---|---|---|---|---|---|
-| **#1** | Consulta de espacios culturales reales y manejo resiliente de datos | `High` | `feature/cultural-spaces-listing` | `In Progress` / Pendiente crear en GitHub | Código implementado y subido a `origin`, pendiente creación del Issue en GitHub. |
-| **#2** | Búsqueda y filtrado seguro por municipio, departamento, tipo de espacio y nombre | `High` | `feature/search-and-filter` y `feature/improve-empty-states` | `In Review` / Pendiente revisión de PR | La rama `feature/improve-empty-states` está subida y pendiente de revisión y fusión del PR (`Refs #2`). |
-| **#3** | Resumen estadístico rápido de los resultados consultados | `Medium` | `feature/results-summary` | `In Progress` / Pendiente crear en GitHub | Código y pruebas implementados y subidos a `origin`, pendiente creación del Issue en GitHub. |
+| **#1** | PBI #1: Consulta de espacios culturales reales y manejo resiliente de datos | `High` | `feature/cultural-spaces-listing` | `Done` | https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/1 |
+| **#2** | PBI #2: Búsqueda y filtrado seguro por municipio, departamento, tipo de espacio y nombre | `High` | `feature/improve-empty-states` | `In Review` (PR #4 abierto) | https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/2 |
+| **#3** | PBI #3: Resumen estadístico rápido de los resultados consultados | `Medium` | `feature/results-summary` | `Done` | https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/3 |

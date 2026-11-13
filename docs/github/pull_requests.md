@@ -1,9 +1,9 @@
-# Pull Request Abierto / Listo para Abrir en GitHub
+# Pull Request Abierto en GitHub
 
+* **Pull Request #4:** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/pull/4
 * **Rama origen:** `feature/improve-empty-states` → **Rama destino:** `main`
-* **Enlace directo de comparación y creación del PR en GitHub:** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/compare/main...feature/improve-empty-states?expand=1
-* **Estado:** Pendiente de revisión y fusión (NO fusionado en `main`).
-* **Referencia:** `Refs #2`
+* **Estado:** `Open` — Pendiente de revisión y fusión (NO fusionado en `main`).
+* **Referencia:** `Refs #2` (https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/2)
 
 ---
 

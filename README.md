@@ -8,10 +8,12 @@ Aplicación web construida en **Python + Django** (sin modelos ni base de datos 
 
 * **Repositorio remoto:** https://github.com/andressantiagomeloaguirre67-sys/Hackathon
 * **Rama principal (`main`):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/tree/main
-* **Rama de mejora abierta para Pull Request (`feature/improve-empty-states`):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/tree/feature/improve-empty-states
-* **Enlace directo del Pull Request (`main...feature/improve-empty-states`, pendiente de revisión y fusión):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/compare/main...feature/improve-empty-states?expand=1
-* **Issues del repositorio (textos listos en [`docs/github/issues.md`](docs/github/issues.md)):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues
-* **GitHub Projects del repositorio (estructura en [`docs/github/project.md`](docs/github/project.md)):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/projects
+* **Pull Request #4 (abierto, con `Refs #2`, pendiente de revisión y fusión):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/pull/4
+* **Issues creados en GitHub:**
+  * **Issue #1 (PBI #1 - High):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/1
+  * **Issue #2 (PBI #2 - High):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/2
+  * **Issue #3 (PBI #3 - Medium):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/3
+* **GitHub Project del repositorio:** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/projects (estructura documentada en [`docs/github/project.md`](docs/github/project.md))
 
 ---
 
@@ -171,9 +173,10 @@ Entregar un recorrido web completo y verificado en Django que permita buscar, fi
 - [x] **Criterios de aceptación cumplidos en el código:** Los 3 PBIs cumplen todos sus criterios técnicos y funcionales.
 - [x] **Entradas inválidas o resultados vacíos no rompen la app:** Comprobado con entradas en blanco, comillas simples (`O'Higgins' OR '1'='1`), búsquedas sin coincidencias y registros con valores `None` / `"Sin Dato"`.
 - [x] **Se ejecutó una prueba real:** Ejecutados los tests automatizados (`python manage.py test -v 2`) y la prueba manual con `runserver`.
-- [x] **`README.md` permite instalar y ejecutar:** Incluye instrucciones paso a paso verificadas.
-- [ ] **Cambios revisados por un par e integrados mediante PR en GitHub (Pendiente):** La rama `feature/improve-empty-states` está subida en el remoto y **pendiente de revisión por un compañero y posterior fusión a `main`**.
-- [ ] **Issues y GitHub Project creados en la interfaz remota de GitHub (Pendiente):** Al no estar autenticado `gh auth login` en este entorno, los textos completos quedaron listos en [`docs/github/issues.md`](docs/github/issues.md) y [`docs/github/project.md`](docs/github/project.md) pendientes de crearse en GitHub tras ejecutar `gh auth login`.
+- [x] **`README.md` permite instalar y ejecutar:** Incluye instrucciones paso a paso verificadas y enlaces reales a GitHub.
+- [x] **Issues (#1, #2, #3) y Pull Request (#4 con `Refs #2`) creados en GitHub:** Verificados en https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues y https://github.com/andressantiagomeloaguirre67-sys/Hackathon/pull/4.
+- [ ] **Revisión del Pull Request #4 e integración en `main` (Pendiente):** El PR #4 se encuentra abierto y **pendiente de revisión por un compañero y posterior fusión a `main`**.
+- [ ] **Movimiento del Issue #2 a `Done` en el GitHub Project (Pendiente):** Depende de que se revise y fusione el Pull Request #4.
 
 ---
 
