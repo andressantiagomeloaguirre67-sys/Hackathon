@@ -110,16 +110,27 @@ Datos verificados directamente desde https://www.datos.gov.co/api/views/te39-v28
 
 ---
 
-## 4. Descubrimiento
+## 4. Fase 1 — Descubrimiento del Problema
 
-* **Problema (hipótesis, no hecho confirmado):** Se plantea como **hipótesis** que ciudadanos, estudiantes, turistas y gestores culturales en Colombia tienen dificultades para encontrar en un solo lugar qué espacios culturales, bibliotecas, museos o escenarios artísticos existen en su municipio o departamento, dado que la información proviene de múltiples registros técnicos sectoriales (PULEP, Red Nacional de Bibliotecas Públicas, SIMCO, SIlep, ICANH).
-* **Usuario objetivo:** Ciudadanos, estudiantes, docentes, investigadores, turistas y gestores culturales en Colombia.
+### 4.1 Fuentes candidatas exploradas en `datos.gov.co` y justificación de selección
+Durante la exploración en la API de catálogo Socrata (`api.us.socrata.com/api/catalog/v1`) se analizaron metadatos, conteo real y muestras de varias fuentes ciudadanas (descartando las que tenían menos de 200 registros o más de 3 años sin actualizar, como `rpqd-dc8v`, `ideb-ck93`, `g8hy-gwg8` y `2h8t-2zik`) y se compararon 3 candidatos viables:
+
+1. `b4dp-ximh` — *Prestadores de Salud Departamento de Antioquia* (Gobernación de Antioquia, 17.232 registros, actualizado `2025-03-19`).
+2. **`te39-v28f` — *Espacios de las Artes, las Culturas y los Saberes* (Ministerio de las Culturas, las Artes y los Saberes, 29.961 registros, actualizado `2026-11-13`) — [SELECCIONADO]**.
+3. `7tec-5fhs` — *Listado de Instituciones Educativas Oficiales y No Oficiales del Departamento del Atlántico* (Gobernación del Atlántico, 212 registros, actualizado `2024-08-21`).
+
+* **Justificación de selección (`te39-v28f`):** Tiene cobertura nacional (todos los departamentos y municipios de Colombia), fue actualizado el `2026-11-13`, cuenta con 29.961 registros reales y posee columnas categóricas y geográficas claras (`departamento`, `municipio`, `tipo_lugar`, `nombre_del_lugar`) ideales para un recorrido completo de búsqueda, filtrado y resumen ciudadano.
+
+### 4.2 Entregable del Descubrimiento
+* **Nombre provisional de la aplicación:** *Directorio Ciudadano de Espacios de las Artes, las Culturas y los Saberes de Colombia*.
+* **Problema o hipótesis de necesidad (hipótesis, no hecho comprobado):** Se formula como **hipótesis** (al no haber sido contrastada aún con usuarios reales en campo) que ciudadanos, estudiantes, turistas y gestores culturales tienen dificultades para localizar en un único punto qué escenarios culturales, bibliotecas, museos o casas de cultura existen en su municipio o departamento, dado que los registros oficiales provienen de sistemas sectoriales separados (PULEP, Red Nacional de Bibliotecas Públicas, SIMCO, SIlep, ICANH).
+* **Usuario o beneficiario potencial y decisión/acción que le facilita:** Ciudadanos, estudiantes, docentes, investigadores, turistas y gestores culturales en Colombia. La aplicación les facilita **identificar y decidir a qué espacios culturales acudir o con cuáles articular actividades culturales en su municipio o departamento**.
 * **Fuente:** [Espacios de las Artes, las Culturas y los Saberes (`te39-v28f`)](https://www.datos.gov.co/resource/te39-v28f.json) — **Ministerio de las Culturas, las Artes y los Saberes - MinCultura, Bogotá D.C.** (`rowsUpdatedAt`: `2026-11-13 05:20:56 UTC`, **29.961 registros** verificados con `$select=count(*)`).
-* **Campos usados:** `nombre_del_lugar`, `tipo_lugar`, `departamento`, `municipio`, `direcci_n_f_sica`, `descripci_n`, `fuente` y `divipola`.
-* **Funcionalidad principal:** **Buscar, filtrar y resumir** espacios culturales por palabra clave en el nombre, municipio, departamento y tipo de lugar.
-* **Limitaciones:**
-  * El dataset no cuenta con columnas de teléfono, correo electrónico ni horarios de atención.
-  * Las direcciones físicas no siguen un estándar único y algunos registros patrimoniales o arqueológicos carecen de dirección urbana detallada.
+* **Campos o variables relevantes y alcance de la información:** `nombre_del_lugar` (nombre oficial), `tipo_lugar` (categoría del espacio), `departamento`, `municipio`, `direcci_n_f_sica`, `descripci_n`, `fuente` (sistema origen) y `divipola`. Alcance: nacional (32 departamentos y Bogotá D.C.).
+* **Funcionalidad principal y valor esperado:** **Buscar, filtrar y resumir** espacios culturales por palabra clave en el nombre, municipio, departamento y tipo de lugar, ofreciendo indicadores resumidos de cuántos espacios y categorías existen en el territorio consultado.
+* **Limitaciones conocidas y riesgos de implementación:**
+  * *Limitaciones de los datos:* No incluye teléfono, correo electrónico ni horarios de atención; las direcciones físicas no están estandarizadas y algunos registros arqueológicos carecen de dirección urbana detallada.
+  * *Riesgos de implementación y mitigación:* Posible latencia o caída temporal de la API Socrata (mitigado con `timeout=8` segundos y archivo de respaldo real `/data/cultural_spaces_sample.csv`) y posibles errores de sintaxis SoQL por caracteres especiales en la entrada del usuario (mitigado con saneamiento de comillas simples en `sanitize_soql_value`).
 
 ---
 
@@ -230,12 +241,35 @@ Single quote sanitization: HTTP 200 | Cards rendered: 0 | Attribution present: T
 
 ---
 
-## 8. Retrospectiva del Sprint
+## 8. Fase 4 — Revisión del Sprint (Sprint Review) y Retrospectiva
 
-* **Qué funcionó bien:**
+### 8.1 Revisión del Sprint (Sprint Review)
+* **Problema o hipótesis identificada y para quién:** Hipótesis de dispersión de la oferta de infraestructura cultural pública y privada en Colombia para ciudadanos, estudiantes, investigadores y gestores culturales.
+* **Fuente de datos utilizada y limitaciones observadas:** Dataset oficial `te39-v28f` (*Espacios de las Artes, las Culturas y los Saberes*) del Ministerio de las Culturas, las Artes y los Saberes en `datos.gov.co` (29.961 registros). Limitaciones: ausencia de teléfonos/horarios y direcciones físicas heterogéneas o vacías en sitios arqueológicos.
+* **Qué buscaba el Objetivo del Sprint (Sprint Goal):** Entregar un recorrido web completo y verificado en Django para buscar, filtrar de forma segura (`$where` saneado) y resumir espacios culturales reales de Colombia manejando entradas vacías, cero coincidencias, datos incompletos y contingencia offline con CSV local.
+* **Recorrido funcional realmente disponible:** Consulta en vivo a Socrata API (con fallback automático a `/data/cultural_spaces_sample.csv`), formulario de búsqueda por nombre, municipio, departamento y tipo de lugar, panel de resumen estadístico (total mostrados, municipios, departamentos y categorías principales) y tarjetas de resultados con atribución oficial.
+* **Qué cumplió la DoD y qué quedó pendiente:** Cumple inicio sin errores (`manage.py check`), recorrido completo en navegador, datos reales con fuente identificada, manejo de entradas vacías/inválidas/sin resultados y 7 pruebas automatizadas en `tests.py`. Queda **pendiente** la revisión por un par y fusión del [Pull Request #4](https://github.com/andressantiagomeloaguirre67-sys/Hackathon/pull/4) (`Refs #2`) y mover el [Issue #2](https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/2) a `Done` tras dicha fusión.
+
+### 8.2 Retrospectiva del Sprint (Sprint Retrospective)
+* **¿Qué funcionó bien en nuestra forma de trabajar?**
   * La separación entre `views.py` y `services.py` permitió encapsular el saneamiento de `$where`, la limpieza de datos incompletos y el respaldo CSV local en funciones puras, logrando pruebas unitarias rápidas (`~0.02s`) sin requerir base de datos.
   * El uso de la clave SSH local permitió subir el repositorio y todas las ramas a GitHub sin exponer tokens ni credenciales en ningún archivo del proyecto.
-* **Qué obstáculo hubo:**
-  * Aunque el acceso SSH a GitHub estaba activo para `git push`, el cliente `gh` CLI no tenía una sesión OAuth iniciada (`gh auth login`), lo que impidió crear automáticamente los Issues, el Project y el Pull Request mediante la API de GitHub sin intervención manual en el navegador.
-* **Acción concreta de mejora:**
-  * Verificar tanto `ssh -T git@github.com` como `gh auth status` al inicio del Sprint (Paso 1) antes de comenzar la codificación para asegurar que la automatización de tableros e issues esté disponible desde el primer commit.
+* **¿Qué obstáculo afectó más el resultado?**
+  * Aunque el acceso SSH a GitHub estaba activo para `git push`, el cliente `gh` CLI no tenía una sesión OAuth iniciada (`gh auth login`), por lo que la creación de Issues, Project y Pull Request requirió completarse desde la interfaz web de GitHub.
+* **¿Qué acción concreta mejoraríamos en el próximo ciclo?**
+  * Verificar tanto `ssh -T git@github.com` como `gh auth status` en los primeros 5 minutos del Sprint antes de iniciar el desarrollo, e incorporar paginación (`$offset`) y autocompletado de municipios en la interfaz.
+
+---
+
+## 9. Resumen Consolidado de Entregables (Para entrega en Moodle)
+
+| Elemento | Evidencia verificable |
+|---|---|
+| **Descubrimiento** | Hipótesis de problema, usuario objetivo, exploración de 3 candidatos y justificación de `te39-v28f` en la [Sección 4](#4-fase-1--descubrimiento-del-problema). |
+| **Producto** | Repositorio en https://github.com/andressantiagomeloaguirre67-sys/Hackathon y aplicación Django ejecutable con `python manage.py runserver`. |
+| **Reproducibilidad** | Pasos de instalación, entorno virtual, `requirements.txt` y origen de datos en las [Secciones 1 y 2](#1-fuente-de-datos-oficial-verificada-en-apiviewste39-v28fjson). |
+| **Planificación** | Product Goal, Product Backlog (3 PBIs), Sprint Goal, Sprint Backlog y DoD en las [Secciones 5 y 6](#5-planificación-ágil). |
+| **Seguimiento** | Issues [#1](https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/1), [#2](https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/2), [#3](https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/3) y tablero en https://github.com/andressantiagomeloaguirre67-sys/Hackathon/projects ([`docs/github/project.md`](docs/github/project.md)). |
+| **Colaboración** | Ramas por funcionalidad (`feature/*`), commits en inglés y [Pull Request #4](https://github.com/andressantiagomeloaguirre67-sys/Hackathon/pull/4) abierto con `Refs #2`. |
+| **Calidad** | Criterios de aceptación verificados, prueba manual con `runserver` y suite automatizada (`python manage.py test -v 2` → `OK`) en la [Sección 7](#7-resultado-real-de-las-pruebas). |
+| **Aprendizaje** | Sprint Review, pendientes explícitos y acción concreta de mejora en la [Sección 8](#8-fase-4--revisión-del-sprint-sprint-review-y-retrospectiva). |
