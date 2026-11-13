@@ -168,7 +168,15 @@ Permitir que cualquier ciudadano o gestor cultural en Colombia descubra de forma
 ### Sprint Goal
 Entregar un recorrido web completo y verificado en Django que permita buscar, filtrar de forma segura y resumir espacios culturales reales de Colombia desde la API de `datos.gov.co`, manejando entradas vacías, búsquedas sin resultados, registros incompletos y contingencias de red.
 
-### Sprint Backlog, Ramas y Commits en GitHub
+### Sprint Backlog, Plan de Implementación, Ramas y Commits en GitHub
+
+#### Plan de implementación del Sprint (Sección 5.4 de la Guía)
+| PBI | Trabajo técnico necesario | Responsabilidad en el equipo | Dependencias | Verificación aplicada |
+|---|---|---|---|---|
+| **PBI #1 (High)** | Cliente HTTP Socrata (`services.py`), normalización de datos ausentes, descarga de muestra real en `/data/cultural_spaces_sample.csv`, vista y plantilla inicial con atribución. | Desarrollo backend y datos (`Andres`) | Configuración base de Django (`config/`, `manage.py`). | `manage.py check`, prueba unitaria de datos incompletos y prueba de caída de red (fallback CSV). |
+| **PBI #2 (High)** | Construcción y saneamiento de consultas SoQL (`$where` con escape de comillas simples), formulario HTML de búsqueda/filtrado (`q`, `municipio`, `departamento`, `tipo_lugar`), manejo de entradas vacías y sin coincidencias. | Desarrollo de filtros, seguridad SoQL e interfaz (`Santiago`) | Cliente base y normalizador del PBI #1. | Prueba unitaria de inyección/comillas simples, entrada vacía, cero resultados y mejora en PR #4 (`Refs #2`). |
+| **PBI #3 (Medium)** | Cálculo de indicadores de resumen (`summarize_spaces`: total mostrados, municipios, departamentos y categorías principales) y suite completa de pruebas en `tests.py`. | Calidad, pruebas automatizadas y resumen (`Juliana`) | Estructura de registros normalizados del PBI #1 y filtros del PBI #2. | Ejecución de `python manage.py test -v 2` (7 tests en `OK`) y prueba manual con `runserver`. |
+
 * **Ramas y commits principales subidos en `origin` ([ver historial de commits](https://github.com/andressantiagomeloaguirre67-sys/Hackathon/commits/main)):**
   * `8488d4a` (`main`): `docs: add discovery, agile planning, and DoD to README`
   * `d183d76` (`main`): `docs: add GitHub Project board and backlog issues in docs/github`
