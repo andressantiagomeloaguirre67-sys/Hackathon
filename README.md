@@ -11,10 +11,11 @@ Aplicación web construida en **Python + Django** (sin modelos ni base de datos 
 * **Historial de Commits en GitHub (`main`):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/commits/main
 * **Ramas del repositorio (`branches`):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/branches
 * **Pull Request #4 (abierto, con `Refs #2`, pendiente de revisión y fusión):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/pull/4
-* **Issues creados en GitHub:**
-  * **Issue #1 (PBI #1 - High):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/1
-  * **Issue #2 (PBI #2 - High):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/2
-  * **Issue #3 (PBI #3 - Medium):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/3
+* **Issues creados en GitHub y Catálogo Completo de Historias de Usuario ([`docs/HISTORIADEUSUARIO_ISSUES.md`](docs/HISTORIADEUSUARIO_ISSUES.md)):**
+  * **Issue #1 (HU-01 - High):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/1
+  * **Issue #2 (HU-02 - High):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/2
+  * **Issue #3 (HU-03 - Medium):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/3
+  * **HU-04 a HU-08 (Saneamiento SoQL, Normalización de incompletos, Contingencia CSV, Paginación y Autocompletado):** Documentadas y listas para copiar en [`docs/HISTORIADEUSUARIO_ISSUES.md`](docs/HISTORIADEUSUARIO_ISSUES.md).
 * **GitHub Project del repositorio:** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/projects (estructura documentada en [`docs/github/project.md`](docs/github/project.md))
 
 ---

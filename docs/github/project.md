@@ -1,29 +1,32 @@
-# Configuración del GitHub Project y Tablero Ágil
-
-> **Estado real en GitHub:** El código y las ramas están subidos en https://github.com/andressantiagomeloaguirre67-sys/Hackathon. La creación del Project y de los Issues en la interfaz de GitHub se encuentra **pendiente** de ejecutar con `gh auth login` o desde la interfaz web de GitHub.
-
-## 1. Estructura del GitHub Project
+# Configuración del GitHub Project y Tablero Ágil Completo
 
 * **Repositorio:** https://github.com/andressantiagomeloaguirre67-sys/Hackathon
 * **URL de Projects del repositorio:** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/projects
+* **Catálogo detallado de las 8 Historias de Usuario (listo para copiar):** [`docs/HISTORIADEUSUARIO_ISSUES.md`](../HISTORIADEUSUARIO_ISSUES.md)
+
+## 1. Estructura del GitHub Project
+
 * **Nombre del Proyecto:** `Directorio Cultural Colombia - Sprint 1`
+* **Visibilidad recomendada:** `Public` (para que el instructor pueda inspeccionarlo sin restricción de permisos).
 * **Campo de estado (`Status`):**
-  1. `Backlog`
-  2. `Ready`
-  3. `In Progress`
-  4. `In Review`
-  5. `Done`
-* **Campo personalizado (`Priority` - Single Select):**
-  * `High`
-  * `Medium`
-  * `Low`
+  1. `Backlog` (Trabajo identificado para iteraciones futuras)
+  2. `Ready` (Trabajo priorizado y listo para comenzar)
+  3. `In Progress` (Trabajo en ejecución)
+  4. `In Review` (Trabajo con Pull Request abierto pendiente de revisión)
+  5. `Done` (Trabajo terminado y verificado con la DoD)
+* **Campo personalizado (`Priority` - Single Select):** `High`, `Medium`, `Low`
 
 ---
 
-## 2. Estado Real del Tablero (según la DoD actual)
+## 2. Distribución Completa en el Tablero (8 Historias de Usuario / Issues)
 
-| Issue | Título | Priority | Rama en GitHub | Estado real (`Status`) | Enlace real |
+| ID / Issue | Título | Priority | Responsable | Rama asociada | Estado (`Status`) |
 |---|---|---|---|---|---|
-| **#1** | PBI #1: Consulta de espacios culturales reales y manejo resiliente de datos | `High` | `feature/cultural-spaces-listing` | `Done` | https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/1 |
-| **#2** | PBI #2: Búsqueda y filtrado seguro por municipio, departamento, tipo de espacio y nombre | `High` | `feature/improve-empty-states` | `In Review` (PR #4 abierto) | https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/2 |
-| **#3** | PBI #3: Resumen estadístico rápido de los resultados consultados | `Medium` | `feature/results-summary` | `Done` | https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/3 |
+| **HU-01** ([#1](https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/1)) | Consulta inicial de espacios culturales reales y atribución oficial de `datos.gov.co` | `High` | `Andres` | `feature/cultural-spaces-listing` | `Done` |
+| **HU-02** ([#2](https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/2)) | Búsqueda por palabra clave y filtrado combinado por departamento, municipio y tipo | `High` | `Santiago` | `feature/search-and-filter` + `PR #4` | `In Review` |
+| **HU-03** ([#3](https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/3)) | Resumen estadístico rápido de la oferta cultural en la consulta actual | `Medium` | `Juliana` | `feature/results-summary` | `Done` |
+| **HU-04** | Saneamiento de entradas contra inyección SoQL (`$where`) y manejo de búsquedas en blanco | `High` | `Santiago` | `feature/search-and-filter` | `Done` |
+| **HU-05** | Normalización de registros con datos incompletos y retroalimentación en búsquedas sin coincidencias | `High` | `Juliana` | `feature/improve-empty-states` (`PR #4`) | `In Review` |
+| **HU-06** | Contingencia automática con respaldo CSV local ante caídas o timeouts de la API Socrata | `Medium` | `Andres` | `feature/cultural-spaces-listing` | `Done` |
+| **HU-07** | Paginación de resultados (`$offset` y `$limit`) para explorar más de 40 espacios por consulta | `Medium` | `Andres` | Backlog Sprint 2 | `Ready` |
+| **HU-08** | Autocompletado dinámico de municipios según el departamento seleccionado | `Low` | `Juliana` | Backlog Sprint 2 | `Backlog` |
