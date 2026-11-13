@@ -8,6 +8,8 @@ Aplicación web construida en **Python + Django** (sin modelos ni base de datos 
 
 * **Repositorio remoto:** https://github.com/andressantiagomeloaguirre67-sys/Hackathon
 * **Rama principal (`main`):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/tree/main
+* **Historial de Commits en GitHub (`main`):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/commits/main
+* **Ramas del repositorio (`branches`):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/branches
 * **Pull Request #4 (abierto, con `Refs #2`, pendiente de revisión y fusión):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/pull/4
 * **Issues creados en GitHub:**
   * **Issue #1 (PBI #1 - High):** https://github.com/andressantiagomeloaguirre67-sys/Hackathon/issues/1
@@ -166,13 +168,16 @@ Permitir que cualquier ciudadano o gestor cultural en Colombia descubra de forma
 ### Sprint Goal
 Entregar un recorrido web completo y verificado en Django que permita buscar, filtrar de forma segura y resumir espacios culturales reales de Colombia desde la API de `datos.gov.co`, manejando entradas vacías, búsquedas sin resultados, registros incompletos y contingencias de red.
 
-### Sprint Backlog y Estado en GitHub
-* **Ramas subidas en `origin` (`https://github.com/andressantiagomeloaguirre67-sys/Hackathon`):**
-  * `main`: Contiene la aplicación base funcional y las pruebas iniciales.
-  * `feature/cultural-spaces-listing`: Implementación inicial del PBI #1.
-  * `feature/search-and-filter`: Implementación de búsqueda y filtrado SoQL del PBI #2.
-  * `feature/results-summary`: Implementación de resumen estadístico y suite de pruebas del PBI #3.
-  * `feature/improve-empty-states`: Rama con mejora adicional de manejo de datos incompletos, acotamiento de `$limit` y detalle de filtros en búsquedas vacías (`Refs #2`), **pendiente de revisión y fusión en Pull Request**.
+### Sprint Backlog, Ramas y Commits en GitHub
+* **Ramas y commits principales subidos en `origin` ([ver historial de commits](https://github.com/andressantiagomeloaguirre67-sys/Hackathon/commits/main)):**
+  * `8488d4a` (`main`): `docs: add discovery, agile planning, and DoD to README`
+  * `d183d76` (`main`): `docs: add GitHub Project board and backlog issues in docs/github`
+  * `3f321c9` (`main`): `chore: initialize stateless Django project and pinned requirements`
+  * `f0146f8` (`feature/cultural-spaces-listing`): `feat: add Socrata API client, CSV fallback, and cultural spaces listing (Refs #1)`
+  * `4e0cf39` (`feature/search-and-filter`): `feat: add sanitized SoQL search and filter form with empty and zero-result handling (Refs #2)`
+  * `8afd103` (`feature/results-summary`): `feat: add statistical summary bar for cultural spaces results (Refs #3)`
+  * `fe2f2c7` (`feature/results-summary`): `test: add mocked unit and integration tests for mandatory scenarios (Refs #1, #2, #3)`
+  * `83da456` (`feature/improve-empty-states`): `feat: clamp Socrata query limit, handle extended placeholders, and show active filters on empty results (Refs #2)` — **Abierto en [Pull Request #4](https://github.com/andressantiagomeloaguirre67-sys/Hackathon/pull/4), pendiente de revisión y fusión**.
 
 ---
 
