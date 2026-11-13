@@ -9,12 +9,15 @@
             --bg: #f8fafc;
             --card-bg: #ffffff;
             --primary: #1e3a8a;
+            --primary-hover: #172554;
             --primary-light: #dbeafe;
             --text: #0f172a;
             --muted: #475569;
             --border: #e2e8f0;
             --warning-bg: #fef3c7;
             --warning-text: #92400e;
+            --info-bg: #e0f2fe;
+            --info-text: #075985;
         }
         * { box-sizing: border-box; }
         body {
@@ -50,6 +53,65 @@
         main {
             padding: 1.5rem 0 2.5rem;
         }
+        .search-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 0.6rem;
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 0.85rem;
+            align-items: end;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.86rem;
+            font-weight: 600;
+            margin-bottom: 0.35rem;
+            color: var(--text);
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.55rem 0.7rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.4rem;
+            font-size: 0.94rem;
+            background-color: #ffffff;
+            color: var(--text);
+        }
+        .form-actions {
+            display: flex;
+            gap: 0.6rem;
+            margin-top: 1rem;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: #ffffff;
+            border: none;
+            padding: 0.58rem 1.15rem;
+            border-radius: 0.4rem;
+            font-size: 0.94rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+        .btn-secondary {
+            display: inline-block;
+            text-decoration: none;
+            background: #f1f5f9;
+            color: var(--text);
+            border: 1px solid #cbd5e1;
+            padding: 0.55rem 1rem;
+            border-radius: 0.4rem;
+            font-size: 0.94rem;
+        }
         .alert-warning {
             background: var(--warning-bg);
             color: var(--warning-text);
@@ -57,6 +119,25 @@
             padding: 0.85rem 1rem;
             border-radius: 0.5rem;
             margin-bottom: 1.25rem;
+        }
+        .alert-info {
+            background: var(--info-bg);
+            color: var(--info-text);
+            border: 1px solid #7dd3fc;
+            padding: 0.85rem 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.25rem;
+        }
+        .empty-state {
+            background: var(--card-bg);
+            border: 1px dashed #94a3b8;
+            border-radius: 0.6rem;
+            padding: 2rem 1.25rem;
+            text-align: center;
+        }
+        .empty-state h2 {
+            margin-top: 0;
+            font-size: 1.25rem;
         }
         .cards-grid {
             display: grid;
@@ -119,12 +200,70 @@
     </header>
 
     <main class="container">
+        <section class="search-panel" aria-label="Formulario de búsqueda y filtrado">
+            <form method="get" action="{% url 'cultural_spaces:index' %}">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="id_q">Nombre del espacio</label>
+                        <input
+                            type="text"
+                            id="id_q"
+                            name="q"
+                            value="{{ filters.q }}"
+                            placeholder="Ej. Biblioteca, Teatro, Museo..."
+                            maxlength="100"
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="id_municipio">Municipio</label>
+                        <input
+                            type="text"
+                            id="id_municipio"
+                            name="municipio"
+                            value="{{ filters.municipio }}"
+                            placeholder="Ej. Medellín, Cali, Curumaní..."
+                            maxlength="100"
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="id_departamento">Departamento</label>
+                        <select id="id_departamento" name="departamento">
+                            <option value="">Todos los departamentos</option>
+                            {% for dept in department_choices %}
+                            <option value="{{ dept }}" {% if filters.departamento == dept %}selected{% endif %}>{{ dept }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_tipo_lugar">Tipo de espacio cultural</label>
+                        <select id="id_tipo_lugar" name="tipo_lugar">
+                            <option value="">Todos los tipos</option>
+                            {% for stype in space_type_choices %}
+                            <option value="{{ stype }}" {% if filters.tipo_lugar == stype %}selected{% endif %}>{{ stype }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Buscar espacios</button>
+                    <a href="{% url 'cultural_spaces:index' %}" class="btn-secondary">Limpiar filtros</a>
+                </div>
+            </form>
+        </section>
+
         {% if error_message %}
         <div class="alert-warning" role="status">
             <strong>Aviso de conexión:</strong> {{ error_message }}
         </div>
         {% endif %}
 
+        {% if empty_search_submitted %}
+        <div class="alert-info" role="status">
+            Mostrando el listado general de espacios culturales (no se ingresaron filtros de búsqueda).
+        </div>
+        {% endif %}
+
+        {% if spaces %}
         <div class="cards-grid">
             {% for space in spaces %}
             <article class="space-card">
@@ -141,6 +280,17 @@
             </article>
             {% endfor %}
         </div>
+        {% else %}
+        <section class="empty-state" role="status">
+            <h2>No se encontraron espacios culturales que coincidan con los criterios de búsqueda</h2>
+            <p>
+                Intenta con otro municipio, departamento o palabra clave, o restablece el formulario para ver todos los registros disponibles.
+            </p>
+            <p>
+                <a href="{% url 'cultural_spaces:index' %}" class="btn-secondary">Ver todos los espacios</a>
+            </p>
+        </section>
+        {% endif %}
     </main>
 
     <footer>
