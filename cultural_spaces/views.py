@@ -1,11 +1,11 @@
-"""Views for browsing and filtering cultural spaces from datos.gov.co."""
+"""Views for browsing, filtering, and summarizing cultural spaces from datos.gov.co."""
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from . import services
 
 
 def index(request: HttpRequest) -> HttpResponse:
-    """Render the cultural spaces directory with search and filter controls."""
+    """Render the cultural spaces directory with search, filter, and summary controls."""
     raw_query = request.GET.get("q", "")
     raw_municipality = request.GET.get("municipio", "")
     raw_department = request.GET.get("departamento", "")
@@ -28,6 +28,7 @@ def index(request: HttpRequest) -> HttpResponse:
 
     context = {
         "spaces": result["items"],
+        "summary": result["summary"],
         "using_fallback": result["using_fallback"],
         "error_message": result["error_message"],
         "source_label": result["source_label"],

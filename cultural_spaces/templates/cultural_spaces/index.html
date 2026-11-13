@@ -112,6 +112,36 @@
             border-radius: 0.4rem;
             font-size: 0.94rem;
         }
+        .summary-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.85rem;
+            margin-bottom: 1.25rem;
+        }
+        .summary-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--primary);
+            border-radius: 0.5rem;
+            padding: 0.85rem 1rem;
+        }
+        .summary-card .label {
+            font-size: 0.8rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .summary-card .value {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-top: 0.15rem;
+        }
+        .summary-types {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-top: 0.25rem;
+        }
         .alert-warning {
             background: var(--warning-bg);
             color: var(--warning-text);
@@ -262,6 +292,33 @@
             Mostrando el listado general de espacios culturales (no se ingresaron filtros de búsqueda).
         </div>
         {% endif %}
+
+        <section class="summary-bar" aria-label="Resumen de resultados">
+            <div class="summary-card">
+                <div class="label">Espacios mostrados</div>
+                <div class="value">{{ summary.total_count }}</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">Municipios en la consulta</div>
+                <div class="value">{{ summary.unique_municipalities }}</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">Departamentos representados</div>
+                <div class="value">{{ summary.unique_departments }}</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">Categorías principales</div>
+                <div class="summary-types">
+                    {% if summary.top_types %}
+                        {% for item in summary.top_types %}
+                            <span><strong>{{ item.name }}:</strong> {{ item.count }}</span>{% if not forloop.last %} · {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        Sin categorías para mostrar
+                    {% endif %}
+                </div>
+            </div>
+        </section>
 
         {% if spaces %}
         <div class="cards-grid">

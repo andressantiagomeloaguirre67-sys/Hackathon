@@ -1,4 +1,5 @@
 """Service layer for reading, cleaning, and filtering cultural spaces from datos.gov.co."""
+from collections import Counter
 import csv
 from pathlib import Path
 from typing import Any
@@ -139,6 +140,39 @@ def normalize_space_record(raw_row: dict[str, Any]) -> dict[str, str]:
     }
 
 
+def summarize_spaces(items: list[dict[str, str]]) -> dict[str, Any]:
+    """Compute a statistical summary over the current list of cultural spaces."""
+    if not items:
+        return {
+            "total_count": 0,
+            "unique_municipalities": 0,
+            "unique_departments": 0,
+            "top_types": [],
+        }
+
+    municipalities = {
+        (item.get("department", ""), item.get("municipality", ""))
+        for item in items
+        if item.get("municipality") and item.get("municipality") != "No especificado"
+    }
+    departments = {
+        item.get("department", "")
+        for item in items
+        if item.get("department") and item.get("department") != "No especificado"
+    }
+    type_counts = Counter(item.get("space_type", "Sin clasificar") for item in items)
+    top_types = [
+        {"name": stype, "count": count} for stype, count in type_counts.most_common(4)
+    ]
+
+    return {
+        "total_count": len(items),
+        "unique_municipalities": len(municipalities),
+        "unique_departments": len(departments),
+        "top_types": top_types,
+    }
+
+
 def _filter_fallback_records(
     records: list[dict[str, str]],
     query: str = "",
@@ -227,6 +261,7 @@ def fetch_cultural_spaces(
         items = [normalize_space_record(item) for item in payload]
         return {
             "items": items,
+            "summary": summarize_spaces(items),
             "using_fallback": False,
             "error_message": None,
             "where_clause": where_clause,
@@ -242,6 +277,7 @@ def fetch_cultural_spaces(
         )
         return {
             "items": fallback_items,
+            "summary": summarize_spaces(fallback_items),
             "using_fallback": True,
             "error_message": (
                 "No fue posible conectar con la API de datos.gov.co en este momento. "
