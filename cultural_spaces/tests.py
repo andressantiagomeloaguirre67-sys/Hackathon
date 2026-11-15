@@ -76,6 +76,7 @@ class CulturalSpacesTests(SimpleTestCase):
             response,
             "No se encontraron espacios culturales que coincidan con los criterios de búsqueda",
         )
+        self.assertContains(response, "TerminoInexistenteXYZ999")
         self.assertEqual(response.context["summary"]["total_count"], 0)
         self.assertEqual(response.context["spaces"], [])
 
@@ -163,3 +164,33 @@ class CulturalSpacesTests(SimpleTestCase):
         self.assertTrue(response.context["using_fallback"])
         self.assertGreater(len(response.context["spaces"]), 0)
         self.assertContains(response, "Aviso de conexión:")
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_extended_placeholders_and_invalid_limit_are_handled_safely(
+        self, mock_get: MagicMock
+    ) -> None:
+        """Verify extended placeholder strings ('Sin información', 'No registra') and out-of-range limits."""
+        mock_get.return_value = self._mock_response(
+            [
+                {
+                    "nombre_del_lugar": "Sin información",
+                    "tipo_lugar": "No aplica",
+                    "departamento": "No registra",
+                    "municipio": "Sin informacion",
+                    "direcci_n_f_sica": "No registra",
+                    "descripci_n": "Sin información",
+                    "fuente": "N/A",
+                }
+            ]
+        )
+
+        result = services.fetch_cultural_spaces(limit=-10)
+        called_params = mock_get.call_args.kwargs["params"]
+        self.assertEqual(called_params["$limit"], "1")
+        self.assertEqual(result["items"][0]["name"], "Nombre no disponible")
+        self.assertEqual(result["items"][0]["space_type"], "Sin clasificar")
+        self.assertEqual(result["items"][0]["department"], "No especificado")
+        self.assertEqual(result["items"][0]["address"], "No especificada")
+        self.assertEqual(result["items"][0]["description"], "Sin descripción disponible")
+        self.assertEqual(result["items"][0]["source"], "No registrada")
+

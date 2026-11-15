@@ -11,15 +11,37 @@ DATASET_PORTAL_URL = (
     "https://www.datos.gov.co/Cultura/"
     "Espacios-de-las-Artes-las-Culturas-y-los-Saberes/te39-v28f"
 )
-PUBLISHER_ENTITY = "Ministerio de las Culturas, las Artes y los Saberes (MinCultura)"
+PUBLISHER_ENTITY = "Ministerio de las Culturas, las Artes y los Saberes - MinCultura, Bogotá D.C."
 DEFAULT_LIMIT = 40
+MAX_LIMIT = 100
 DEFAULT_TIMEOUT = 8
 MAX_FILTER_LENGTH = 100
 FALLBACK_CSV_PATH = (
     Path(__file__).resolve().parent.parent / "data" / "cultural_spaces_sample.csv"
 )
 
-PLACEHOLDER_VALUES = {"", "sin dato", "n/a", "na", "null", "none", "-"}
+PLACEHOLDER_VALUES = {
+    "",
+    "sin dato",
+    "sin información",
+    "sin informacion",
+    "no registra",
+    "no aplica",
+    "n/a",
+    "na",
+    "null",
+    "none",
+    "-",
+}
+
+
+def clamp_limit(limit: Any) -> int:
+    """Ensure the requested record limit is an integer bounded between 1 and MAX_LIMIT."""
+    try:
+        parsed = int(limit)
+    except (TypeError, ValueError):
+        return DEFAULT_LIMIT
+    return max(1, min(parsed, MAX_LIMIT))
 
 SPACE_TYPE_CHOICES = [
     "Biblioteca",
@@ -234,6 +256,7 @@ def fetch_cultural_spaces(
     limit: int = DEFAULT_LIMIT,
 ) -> dict[str, Any]:
     """Fetch cultural spaces from Socrata API with sanitized $where, timeout, and CSV fallback."""
+    safe_limit = clamp_limit(limit)
     where_clause = build_soql_where(
         query=query,
         municipality=municipality,
@@ -241,7 +264,7 @@ def fetch_cultural_spaces(
         space_type=space_type,
     )
     params: dict[str, str] = {
-        "$limit": str(limit),
+        "$limit": str(safe_limit),
         "$order": "nombre_del_lugar ASC",
     }
     if where_clause:
@@ -269,7 +292,7 @@ def fetch_cultural_spaces(
         }
     except (requests.RequestException, ValueError):
         fallback_items = load_fallback_csv(
-            limit=limit,
+            limit=safe_limit,
             query=query,
             municipality=municipality,
             department=department,

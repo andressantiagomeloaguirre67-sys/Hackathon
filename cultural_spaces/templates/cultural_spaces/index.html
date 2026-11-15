@@ -340,6 +340,15 @@
         {% else %}
         <section class="empty-state" role="status">
             <h2>No se encontraron espacios culturales que coincidan con los criterios de búsqueda</h2>
+            {% if has_active_filters %}
+            <p>
+                <strong>Filtros aplicados sin coincidencias:</strong>
+                {% if filters.q %}Nombre: <code>{{ filters.q }}</code> {% endif %}
+                {% if filters.municipio %}Municipio: <code>{{ filters.municipio }}</code> {% endif %}
+                {% if filters.departamento %}Departamento: <code>{{ filters.departamento }}</code> {% endif %}
+                {% if filters.tipo_lugar %}Tipo: <code>{{ filters.tipo_lugar }}</code>{% endif %}
+            </p>
+            {% endif %}
             <p>
                 Intenta con otro municipio, departamento o palabra clave, o restablece el formulario para ver todos los registros disponibles.
             </p>
