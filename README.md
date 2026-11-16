@@ -287,3 +287,6 @@ Single quote sanitization: HTTP 200 | Cards rendered: 0 | Attribution present: T
 | **Colaboración** | Ramas por funcionalidad (`feature/*`), commits en inglés y [Pull Request #4](https://github.com/andressantiagomeloaguirre67-sys/Hackathon/pull/4) abierto con `Refs #2`. |
 | **Calidad** | Criterios de aceptación verificados, prueba manual con `runserver` y suite automatizada (`python manage.py test -v 2` → `OK`) en la [Sección 7](#7-resultado-real-de-las-pruebas). |
 | **Aprendizaje** | Sprint Review, pendientes explícitos y acción concreta de mejora en la [Sección 8](#8-fase-4--revisión-del-sprint-sprint-review-y-retrospectiva). |
+
+## Enlaces a carpeta de historias de usuario 
+https://drive.google.com/drive/folders/1EOStrErIt2PW49ar5Wz6jsKu1uMmVMEp
