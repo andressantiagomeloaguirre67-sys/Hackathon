@@ -29,7 +29,27 @@ def index(request: HttpRequest) -> HttpResponse:
     context = {
         "spaces": result["items"],
         "summary": result["summary"],
+        "top_types": [
+            {"name": item["name"], "count": services.format_thousands(item["count"])}
+            for item in result["summary"]["top_types"]
+        ],
+        "municipalities_display": services.format_thousands(
+            result["summary"]["unique_municipalities"]
+        ),
+        "summary_covers_all": result["summary_scope"] == "all",
+        "shown_count": len(result["items"]),
+        "total_available": result["total_available"],
+        "total_available_display": (
+            services.format_thousands(result["total_available"])
+            if result["total_available"] is not None
+            else None
+        ),
+        "shows_partial_results": (
+            result["total_available"] is not None
+            and result["total_available"] > len(result["items"])
+        ),
         "using_fallback": result["using_fallback"],
+        "sample_size": result["sample_size"],
         "error_message": result["error_message"],
         "source_label": result["source_label"],
         "filters": {

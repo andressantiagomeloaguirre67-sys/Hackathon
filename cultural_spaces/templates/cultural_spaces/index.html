@@ -293,24 +293,33 @@
         </div>
         {% endif %}
 
+        {% if shows_partial_results %}
+        <div class="alert-info" role="status">
+            Hay {{ total_available_display }} espacios que coinciden{% if using_fallback %} dentro de la muestra local{% endif %}.
+            Se listan los primeros {{ shown_count }} en orden alfabético; usa los filtros para acotar la búsqueda.
+            {% if summary_covers_all %}Los indicadores de abajo se calculan sobre los {{ total_available_display }} resultados.{% else %}No fue posible calcular los indicadores sobre todos los resultados: se calculan solo sobre los {{ shown_count }} espacios listados.{% endif %}
+        </div>
+        {% endif %}
+
         <section class="summary-bar" aria-label="Resumen de resultados">
             <div class="summary-card">
-                <div class="label">Espacios mostrados</div>
-                <div class="value">{{ summary.total_count }}</div>
+                <div class="label">Espacios encontrados</div>
+                <div class="value">{% if total_available_display %}{{ total_available_display }}{% else %}{{ shown_count }}{% endif %}</div>
+                {% if shows_partial_results %}<small>Se listan {{ shown_count }}</small>{% endif %}
             </div>
             <div class="summary-card">
-                <div class="label">Municipios en la consulta</div>
-                <div class="value">{{ summary.unique_municipalities }}</div>
+                <div class="label">Municipios{% if not summary_covers_all %} (listados){% endif %}</div>
+                <div class="value">{{ municipalities_display }}</div>
             </div>
             <div class="summary-card">
-                <div class="label">Departamentos representados</div>
+                <div class="label">Departamentos{% if not summary_covers_all %} (listados){% endif %}</div>
                 <div class="value">{{ summary.unique_departments }}</div>
             </div>
             <div class="summary-card">
                 <div class="label">Categorías principales</div>
                 <div class="summary-types">
-                    {% if summary.top_types %}
-                        {% for item in summary.top_types %}
+                    {% if top_types %}
+                        {% for item in top_types %}
                             <span><strong>{{ item.name }}:</strong> {{ item.count }}</span>{% if not forloop.last %} · {% endif %}
                         {% endfor %}
                     {% else %}
