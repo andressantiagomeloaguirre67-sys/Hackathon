@@ -158,6 +158,22 @@
             border-radius: 0.5rem;
             margin-bottom: 1.25rem;
         }
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .pagination .page-info {
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+        .btn-secondary.disabled {
+            opacity: 0.45;
+            pointer-events: none;
+        }
         .empty-state {
             background: var(--card-bg);
             border: 1px dashed #94a3b8;
@@ -296,7 +312,7 @@
         {% if shows_partial_results %}
         <div class="alert-info" role="status">
             Hay {{ total_available_display }} espacios que coinciden{% if using_fallback %} dentro de la muestra local{% endif %}.
-            Se listan los primeros {{ shown_count }} en orden alfabético; usa los filtros para acotar la búsqueda.
+            Se listan los registros {{ first_position }} a {{ last_position }} en orden alfabético{% if total_pages_display %} (página {{ page }} de {{ total_pages_display }}){% endif %}; usa los filtros o los botones de página para recorrer los resultados.
             {% if summary_covers_all %}Los indicadores de abajo se calculan sobre los {{ total_available_display }} resultados.{% else %}No fue posible calcular los indicadores sobre todos los resultados: se calculan solo sobre los {{ shown_count }} espacios listados.{% endif %}
         </div>
         {% endif %}
@@ -305,7 +321,7 @@
             <div class="summary-card">
                 <div class="label">Espacios encontrados</div>
                 <div class="value">{% if total_available_display %}{{ total_available_display }}{% else %}{{ shown_count }}{% endif %}</div>
-                {% if shows_partial_results %}<small>Se listan {{ shown_count }}</small>{% endif %}
+                {% if shows_partial_results %}<small>Se listan {{ shown_count }} por página</small>{% endif %}
             </div>
             <div class="summary-card">
                 <div class="label">Municipios{% if not summary_covers_all %} (listados){% endif %}</div>
@@ -346,6 +362,32 @@
             </article>
             {% endfor %}
         </div>
+        {% if has_previous_page or has_next_page %}
+        <nav class="pagination" aria-label="Paginación de resultados">
+            {% if has_previous_page %}
+            <a href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page={{ previous_page }}" class="btn-secondary" rel="prev">&larr; Página anterior</a>
+            {% else %}
+            <span class="btn-secondary disabled" aria-disabled="true">&larr; Página anterior</span>
+            {% endif %}
+            <span class="page-info">Página {{ page }}{% if total_pages_display %} de {{ total_pages_display }}{% endif %}</span>
+            {% if has_next_page %}
+            <a href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page={{ next_page }}" class="btn-secondary" rel="next">Página siguiente &rarr;</a>
+            {% else %}
+            <span class="btn-secondary disabled" aria-disabled="true">Página siguiente &rarr;</span>
+            {% endif %}
+        </nav>
+        {% endif %}
+        {% elif page_out_of_range %}
+        <section class="empty-state" role="status">
+            <h2>La página {{ page }} no tiene resultados</h2>
+            <p>
+                {% if total_pages_display %}La búsqueda actual tiene {{ total_pages_display }} página{{ total_pages|pluralize }}.{% endif %}
+                Vuelve a la primera página para ver los resultados.
+            </p>
+            <p>
+                <a href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page=1" class="btn-secondary">Ir a la página 1</a>
+            </p>
+        </section>
         {% else %}
         <section class="empty-state" role="status">
             <h2>No se encontraron espacios culturales que coincidan con los criterios de búsqueda</h2>

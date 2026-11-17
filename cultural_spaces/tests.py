@@ -243,7 +243,8 @@ class CulturalSpacesTests(SimpleTestCase):
             {"name": "Sitio Arqueológico", "count": 6000},
         )
         self.assertContains(response, "7.558")
-        self.assertContains(response, "Se listan los primeros 40")
+        self.assertContains(response, "Se listan los registros 1 a 40")
+        self.assertContains(response, "(página 1 de 189)")
         self.assertContains(response, "Los indicadores de abajo se calculan sobre los 7.558 resultados")
         self.assertContains(response, "<strong>Sitio Arqueológico:</strong> 6.000", html=False)
         type_params = mock_get.call_args_list[1].kwargs["params"]
@@ -326,3 +327,133 @@ class CulturalSpacesTests(SimpleTestCase):
         ]
         names = [item["name"] for item in services._filter_fallback_records(records)]
         self.assertEqual(names, ["archivo central", "Museo del Oro", "Teatro Colón"])
+
+    # --- HU-07: pagination -------------------------------------------------
+
+    def _type_aggregate(self, total: int) -> MagicMock:
+        return self._mock_response([{"tipo_lugar": "Biblioteca", "total": str(total)}])
+
+    def _place_aggregate(self) -> MagicMock:
+        return self._mock_response([{"departamento": "Antioquia", "municipio": "Medellín"}])
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_second_page_sends_offset_and_keeps_filters_in_links(
+        self, mock_get: MagicMock
+    ) -> None:
+        """Page 2 asks Socrata for $offset=40 and the navigation links keep the active filters."""
+        mock_get.side_effect = [
+            self._mock_response(self._make_records(services.DEFAULT_LIMIT)),
+            self._type_aggregate(120),
+            self._place_aggregate(),
+        ]
+
+        response = self.client.get(
+            reverse("cultural_spaces:index"),
+            {"departamento": "Antioquia", "tipo_lugar": "Biblioteca", "page": "2"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data_params = mock_get.call_args_list[0].kwargs["params"]
+        self.assertEqual(data_params["$offset"], "40")
+        self.assertEqual(data_params["$limit"], "40")
+        self.assertEqual(data_params["$order"], "nombre_del_lugar ASC, :id ASC")
+        self.assertEqual(response.context["page"], 2)
+        self.assertEqual(response.context["total_pages"], 3)
+        self.assertContains(response, "Se listan los registros 41 a 80")
+        self.assertContains(response, "Página 2 de 3")
+        self.assertContains(
+            response,
+            'href="?departamento=Antioquia&amp;tipo_lugar=Biblioteca&amp;page=1"',
+            html=False,
+        )
+        self.assertContains(
+            response,
+            'href="?departamento=Antioquia&amp;tipo_lugar=Biblioteca&amp;page=3"',
+            html=False,
+        )
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_invalid_page_values_fall_back_to_first_page(self, mock_get: MagicMock) -> None:
+        """Non-numeric, zero, negative, or huge page values are treated as page 1."""
+        for raw_page in ["abc", "0", "-3", "999999", ""]:
+            mock_get.reset_mock()
+            mock_get.side_effect = None
+            mock_get.return_value = self._mock_response(self._make_records(3))
+
+            response = self.client.get(reverse("cultural_spaces:index"), {"page": raw_page})
+
+            self.assertEqual(response.status_code, 200, raw_page)
+            self.assertEqual(response.context["page"], 1, raw_page)
+            self.assertEqual(mock_get.call_args_list[0].kwargs["params"]["$offset"], "0")
+            self.assertFalse(response.context["empty_search_submitted"], raw_page)
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_short_last_page_disables_next_button(self, mock_get: MagicMock) -> None:
+        """On the last page, 'Página siguiente' is disabled and 'Página anterior' links back."""
+        mock_get.side_effect = [
+            self._mock_response(self._make_records(5)),
+            self._type_aggregate(85),
+            self._place_aggregate(),
+        ]
+
+        response = self.client.get(reverse("cultural_spaces:index"), {"page": "3"})
+
+        self.assertFalse(response.context["has_next_page"])
+        self.assertTrue(response.context["has_previous_page"])
+        self.assertContains(response, "Se listan los registros 81 a 85")
+        self.assertContains(response, 'href="?page=2"', html=False)
+        self.assertContains(
+            response,
+            '<span class="btn-secondary disabled" aria-disabled="true">Página siguiente &rarr;</span>',
+            html=False,
+        )
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_short_last_page_knows_total_without_count_query(
+        self, mock_get: MagicMock
+    ) -> None:
+        """If grouped queries fail on a short last page, the total is offset + records, no count(*)."""
+        mock_get.side_effect = [
+            self._mock_response(self._make_records(5)),
+            requests.Timeout("Simulated slow group query"),
+        ]
+
+        response = self.client.get(reverse("cultural_spaces:index"), {"page": "3"})
+
+        self.assertEqual(response.context["total_available"], 85)
+        self.assertEqual(mock_get.call_count, 2)
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_page_beyond_last_shows_clear_message(self, mock_get: MagicMock) -> None:
+        """A page past the end shows a clear message and a link to page 1, not 'no matches'."""
+        mock_get.side_effect = [
+            self._mock_response([]),
+            self._type_aggregate(85),
+            self._place_aggregate(),
+        ]
+
+        response = self.client.get(
+            reverse("cultural_spaces:index"), {"q": "biblioteca", "page": "50"}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["page_out_of_range"])
+        self.assertContains(response, "La página 50 no tiene resultados")
+        self.assertContains(response, "La búsqueda actual tiene 3 páginas.")
+        self.assertContains(response, 'href="?q=biblioteca&amp;page=1"', html=False)
+        self.assertNotContains(response, "No se encontraron espacios culturales")
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_fallback_sample_is_paginated_too(self, mock_get: MagicMock) -> None:
+        """Offline, page 2 lists records 41-80 of the local sample in alphabetical order."""
+        mock_get.side_effect = requests.ConnectionError("Simulated network outage")
+        all_names = [
+            item["name"]
+            for item in services._filter_fallback_records(services._read_fallback_records())
+        ]
+
+        response = self.client.get(reverse("cultural_spaces:index"), {"page": "2"})
+
+        listed = [item["name"] for item in response.context["spaces"]]
+        self.assertEqual(listed, all_names[40:80])
+        self.assertTrue(response.context["using_fallback"])

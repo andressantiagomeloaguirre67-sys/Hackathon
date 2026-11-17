@@ -261,6 +261,25 @@ def load_fallback_csv(
 
 
 MAX_GROUP_ROWS = 5000
+MAX_PAGE = 10000
+
+
+def parse_page(raw_page: Any) -> int:
+    """Validate the `page` query parameter: an integer between 1 and MAX_PAGE, else 1."""
+    try:
+        page = int(str(raw_page).strip())
+    except (TypeError, ValueError):
+        return 1
+    if page < 1 or page > MAX_PAGE:
+        return 1
+    return page
+
+
+def total_pages_for(total: int | None, limit: int = DEFAULT_LIMIT) -> int | None:
+    """Number of pages needed to list `total` records, or None if the total is unknown."""
+    if total is None:
+        return None
+    return max(1, -(-total // limit))
 
 
 def _socrata_get(params: dict[str, str]) -> Any:
@@ -353,16 +372,20 @@ def fetch_cultural_spaces(
     department: str = "",
     space_type: str = "",
     limit: int = DEFAULT_LIMIT,
+    page: int = 1,
 ) -> dict[str, Any]:
-    """Fetch cultural spaces from Socrata API with sanitized $where, timeout, and CSV fallback.
+    """Fetch one page of cultural spaces from Socrata API with sanitized $where, timeout, and CSV fallback.
 
     Result keys:
-      items: the listed page (at most `limit` records, alphabetical).
+      items: the requested page (at most `limit` records, alphabetical).
+      page / offset: the page that was requested and its first record position (0-based).
       summary: indicators; summary_scope says whether they cover "all" matching
         records or only the "shown" page (when the aggregate queries fail).
       total_available: how many records match the filters (None if unknown).
     """
     safe_limit = clamp_limit(limit)
+    safe_page = parse_page(page)
+    offset = (safe_page - 1) * safe_limit
     where_clause = build_soql_where(
         query=query,
         municipality=municipality,
@@ -371,7 +394,9 @@ def fetch_cultural_spaces(
     )
     params: dict[str, str] = {
         "$limit": str(safe_limit),
-        "$order": "nombre_del_lugar ASC",
+        "$offset": str(offset),
+        # :id breaks ties between equal names so pages never repeat or skip records.
+        "$order": "nombre_del_lugar ASC, :id ASC",
     }
     if where_clause:
         params["$where"] = where_clause
@@ -382,8 +407,8 @@ def fetch_cultural_spaces(
             payload = []
         items = [normalize_space_record(item) for item in payload]
 
-        if len(items) < safe_limit:
-            # The page already contains every matching record.
+        if safe_page == 1 and len(items) < safe_limit:
+            # The first page already contains every matching record.
             summary = summarize_spaces(items)
             summary_scope = "all"
             total_available: int | None = len(items)
@@ -396,10 +421,17 @@ def fetch_cultural_spaces(
             else:
                 summary = summarize_spaces(items)
                 summary_scope = "shown"
-                total_available = fetch_total_count(where_clause)
+                if 0 < len(items) < safe_limit:
+                    # A short, non-empty page is the last one: the total is known.
+                    total_available = offset + len(items)
+                else:
+                    total_available = fetch_total_count(where_clause)
 
         return {
             "items": items,
+            "page": safe_page,
+            "offset": offset,
+            "limit": safe_limit,
             "summary": summary,
             "summary_scope": summary_scope,
             "total_available": total_available,
@@ -420,7 +452,10 @@ def fetch_cultural_spaces(
         )
         sample_size = len(all_records)
         return {
-            "items": matching[:safe_limit],
+            "items": matching[offset:offset + safe_limit],
+            "page": safe_page,
+            "offset": offset,
+            "limit": safe_limit,
             "summary": summarize_spaces(matching),
             "summary_scope": "all",
             "total_available": len(matching),
