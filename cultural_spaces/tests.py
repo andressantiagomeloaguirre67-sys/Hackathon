@@ -76,7 +76,8 @@ class CulturalSpacesTests(SimpleTestCase):
             response,
             "No se encontraron espacios culturales que coincidan con los criterios de búsqueda",
         )
-        self.assertContains(response, "TerminoInexistenteXYZ999")
+        self.assertContains(response, "Filtros aplicados sin coincidencias")
+        self.assertContains(response, "<code>TerminoInexistenteXYZ999</code>", html=False)
         self.assertEqual(response.context["summary"]["total_count"], 0)
         self.assertEqual(response.context["spaces"], [])
 
@@ -185,7 +186,7 @@ class CulturalSpacesTests(SimpleTestCase):
         )
 
         result = services.fetch_cultural_spaces(limit=-10)
-        called_params = mock_get.call_args.kwargs["params"]
+        called_params = mock_get.call_args_list[0].kwargs["params"]
         self.assertEqual(called_params["$limit"], "1")
         self.assertEqual(result["items"][0]["name"], "Nombre no disponible")
         self.assertEqual(result["items"][0]["space_type"], "Sin clasificar")
@@ -194,3 +195,134 @@ class CulturalSpacesTests(SimpleTestCase):
         self.assertEqual(result["items"][0]["description"], "Sin descripción disponible")
         self.assertEqual(result["items"][0]["source"], "No registrada")
 
+    def _make_records(self, amount: int) -> list[dict]:
+        return [
+            {
+                "tipo_lugar": "Biblioteca",
+                "departamento": "Antioquia",
+                "municipio": f"Municipio {index}",
+                "nombre_del_lugar": f"BIBLIOTECA {index:03d}",
+            }
+            for index in range(amount)
+        ]
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_summary_covers_all_matching_records_not_only_listed_page(
+        self, mock_get: MagicMock
+    ) -> None:
+        """With a full page, grouped queries compute indicators over every matching record."""
+        mock_get.side_effect = [
+            self._mock_response(self._make_records(services.DEFAULT_LIMIT)),
+            self._mock_response(
+                [
+                    {"tipo_lugar": "Biblioteca", "total": "1200"},
+                    {"tipo_lugar": "Sitio Arqueológico", "total": "6000"},
+                    {"tipo_lugar": "Casa de Cultura", "total": "358"},
+                ]
+            ),
+            self._mock_response(
+                [
+                    {"departamento": "Antioquia", "municipio": "Medellín"},
+                    {"departamento": "Antioquia", "municipio": "Envigado"},
+                    {"departamento": "Antioquia", "municipio": "Sin Dato"},
+                ]
+            ),
+        ]
+
+        response = self.client.get(
+            reverse("cultural_spaces:index"), {"departamento": "Antioquia"}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_available"], 7558)
+        self.assertTrue(response.context["summary_covers_all"])
+        self.assertEqual(response.context["summary"]["unique_municipalities"], 2)
+        self.assertEqual(response.context["summary"]["unique_departments"], 1)
+        self.assertEqual(
+            response.context["summary"]["top_types"][0],
+            {"name": "Sitio Arqueológico", "count": 6000},
+        )
+        self.assertContains(response, "7.558")
+        self.assertContains(response, "Se listan los primeros 40")
+        self.assertContains(response, "Los indicadores de abajo se calculan sobre los 7.558 resultados")
+        self.assertContains(response, "<strong>Sitio Arqueológico:</strong> 6.000", html=False)
+        type_params = mock_get.call_args_list[1].kwargs["params"]
+        self.assertEqual(type_params["$group"], "tipo_lugar")
+        self.assertIn("upper(departamento) = upper('Antioquia')", type_params["$where"])
+        place_params = mock_get.call_args_list[2].kwargs["params"]
+        self.assertEqual(place_params["$group"], "departamento, municipio")
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_aggregate_failure_falls_back_to_listed_page_and_count(
+        self, mock_get: MagicMock
+    ) -> None:
+        """If grouped queries fail, indicators use the listed page and say so; count(*) still gives the total."""
+        mock_get.side_effect = [
+            self._mock_response(self._make_records(services.DEFAULT_LIMIT)),
+            requests.Timeout("Simulated slow group query"),
+            self._mock_response([{"total": "7558"}]),
+        ]
+
+        response = self.client.get(reverse("cultural_spaces:index"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["summary_covers_all"])
+        self.assertEqual(response.context["total_available"], 7558)
+        self.assertEqual(response.context["summary"]["total_count"], services.DEFAULT_LIMIT)
+        self.assertContains(response, "se calculan solo sobre los 40 espacios listados")
+        self.assertContains(response, "Municipios (listados)")
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_all_extra_queries_failing_still_renders_listed_results(
+        self, mock_get: MagicMock
+    ) -> None:
+        """If grouped and count queries all fail, the page still shows the records without a total."""
+        mock_get.side_effect = [
+            self._mock_response(self._make_records(services.DEFAULT_LIMIT)),
+            requests.Timeout("Simulated slow group query"),
+            requests.Timeout("Simulated slow count"),
+        ]
+
+        response = self.client.get(reverse("cultural_spaces:index"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.context["total_available"])
+        self.assertFalse(response.context["shows_partial_results"])
+        self.assertEqual(len(response.context["spaces"]), services.DEFAULT_LIMIT)
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_small_result_set_does_not_request_count(
+        self, mock_get: MagicMock
+    ) -> None:
+        """With fewer records than the page limit, the total is known without a second query."""
+        mock_get.return_value = self._mock_response(self._make_records(3))
+
+        response = self.client.get(reverse("cultural_spaces:index"), {"q": "biblioteca"})
+
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(response.context["total_available"], 3)
+        self.assertFalse(response.context["shows_partial_results"])
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_fallback_explains_it_is_a_sample(self, mock_get: MagicMock) -> None:
+        """Offline mode states that the data is a local sample and how big it is."""
+        mock_get.side_effect = requests.ConnectionError("Simulated network outage")
+        sample_size = services.count_fallback_records()
+
+        response = self.client.get(reverse("cultural_spaces:index"))
+
+        self.assertEqual(response.context["sample_size"], sample_size)
+        self.assertContains(response, "muestra real de respaldo")
+        self.assertContains(response, f"({sample_size} registros descargados de datos.gov.co")
+        self.assertContains(response, "No representa el conjunto completo")
+        self.assertEqual(response.context["total_available"], sample_size)
+        self.assertEqual(response.context["summary"]["total_count"], sample_size)
+
+    def test_fallback_results_are_sorted_by_name_like_the_api(self) -> None:
+        """Offline results use the same alphabetical order as $order=nombre_del_lugar ASC."""
+        records = [
+            services.normalize_space_record({"nombre_del_lugar": name})
+            for name in ["Teatro Colón", "archivo central", "Museo del Oro"]
+        ]
+        names = [item["name"] for item in services._filter_fallback_records(records)]
+        self.assertEqual(names, ["archivo central", "Museo del Oro", "Teatro Colón"])

@@ -219,7 +219,26 @@ def _filter_fallback_records(
         if type_norm and type_norm != item["space_type"].lower():
             continue
         filtered.append(item)
-    return filtered
+    # Same order as the API query ($order=nombre_del_lugar ASC).
+    return sorted(filtered, key=lambda item: item["name"].upper())
+
+
+def format_thousands(value: int) -> str:
+    """Format an integer with dots as thousands separator (Colombian style): 29961 -> 29.961."""
+    return f"{value:,}".replace(",", ".")
+
+
+def _read_fallback_records(csv_path: Path = FALLBACK_CSV_PATH) -> list[dict[str, str]]:
+    """Read and normalize every record stored in the local backup CSV file."""
+    if not csv_path.exists():
+        return []
+    with csv_path.open(mode="r", encoding="utf-8") as csv_file:
+        return [normalize_space_record(row) for row in csv.DictReader(csv_file)]
+
+
+def count_fallback_records(csv_path: Path = FALLBACK_CSV_PATH) -> int:
+    """Return how many records the local backup sample contains."""
+    return len(_read_fallback_records(csv_path))
 
 
 def load_fallback_csv(
@@ -231,21 +250,101 @@ def load_fallback_csv(
     space_type: str = "",
 ) -> list[dict[str, str]]:
     """Read real backup records from the local CSV file when the API is unreachable."""
-    if not csv_path.exists():
-        return []
-    records: list[dict[str, str]] = []
-    with csv_path.open(mode="r", encoding="utf-8") as csv_file:
-        reader = csv.DictReader(csv_file)
-        for row in reader:
-            records.append(normalize_space_record(row))
     filtered = _filter_fallback_records(
-        records,
+        _read_fallback_records(csv_path),
         query=query,
         municipality=municipality,
         department=department,
         space_type=space_type,
     )
     return filtered[:limit]
+
+
+MAX_GROUP_ROWS = 5000
+
+
+def _socrata_get(params: dict[str, str]) -> Any:
+    """Run one GET against the Socrata endpoint and return the decoded JSON."""
+    response = requests.get(
+        SOCRATA_ENDPOINT,
+        params=params,
+        timeout=DEFAULT_TIMEOUT,
+        headers={"Accept": "application/json"},
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def fetch_total_count(where_clause: str = "") -> int | None:
+    """Ask Socrata how many records match the filters, using $select=count(*).
+
+    Returns None when the count cannot be obtained, so the interface can
+    still show the listed records without a total.
+    """
+    params: dict[str, str] = {"$select": "count(*) AS total"}
+    if where_clause:
+        params["$where"] = where_clause
+    try:
+        payload = _socrata_get(params)
+        return int(payload[0]["total"])
+    except (requests.RequestException, ValueError, KeyError, IndexError, TypeError):
+        return None
+
+
+def fetch_aggregate_summary(where_clause: str = "") -> dict[str, Any] | None:
+    """Compute the summary over ALL records that match the filters, not only the listed page.
+
+    Uses two grouped Socrata queries:
+      1. $group=tipo_lugar -> total records and records per space type.
+      2. $group=departamento, municipio -> distinct municipalities and departments.
+    Returns None if any query fails, so the caller can fall back to the listed page.
+    """
+    type_params: dict[str, str] = {
+        "$select": "tipo_lugar, count(*) AS total",
+        "$group": "tipo_lugar",
+        "$order": "total DESC",
+        "$limit": str(MAX_GROUP_ROWS),
+    }
+    place_params: dict[str, str] = {
+        "$select": "departamento, municipio",
+        "$group": "departamento, municipio",
+        "$limit": str(MAX_GROUP_ROWS),
+    }
+    if where_clause:
+        type_params["$where"] = where_clause
+        place_params["$where"] = where_clause
+
+    try:
+        type_rows = _socrata_get(type_params)
+        place_rows = _socrata_get(place_params)
+        if not isinstance(type_rows, list) or not isinstance(place_rows, list):
+            return None
+
+        type_counts: Counter[str] = Counter()
+        for row in type_rows:
+            space_type = _clean_field(row.get("tipo_lugar"), "Sin clasificar")
+            type_counts[space_type] += int(row["total"])
+
+        municipalities: set[tuple[str, str]] = set()
+        departments: set[str] = set()
+        for row in place_rows:
+            department = _clean_field(row.get("departamento"), "No especificado")
+            municipality = _clean_field(row.get("municipio"), "No especificado")
+            if department != "No especificado":
+                departments.add(department)
+                if municipality != "No especificado":
+                    municipalities.add((department, municipality))
+    except (requests.RequestException, ValueError, KeyError, TypeError, AttributeError):
+        return None
+
+    return {
+        "total_count": sum(type_counts.values()),
+        "unique_municipalities": len(municipalities),
+        "unique_departments": len(departments),
+        "top_types": [
+            {"name": name, "count": count} for name, count in type_counts.most_common(4)
+        ],
+    }
 
 
 def fetch_cultural_spaces(
@@ -255,7 +354,14 @@ def fetch_cultural_spaces(
     space_type: str = "",
     limit: int = DEFAULT_LIMIT,
 ) -> dict[str, Any]:
-    """Fetch cultural spaces from Socrata API with sanitized $where, timeout, and CSV fallback."""
+    """Fetch cultural spaces from Socrata API with sanitized $where, timeout, and CSV fallback.
+
+    Result keys:
+      items: the listed page (at most `limit` records, alphabetical).
+      summary: indicators; summary_scope says whether they cover "all" matching
+        records or only the "shown" page (when the aggregate queries fail).
+      total_available: how many records match the filters (None if unknown).
+    """
     safe_limit = clamp_limit(limit)
     where_clause = build_soql_where(
         query=query,
@@ -271,41 +377,62 @@ def fetch_cultural_spaces(
         params["$where"] = where_clause
 
     try:
-        response = requests.get(
-            SOCRATA_ENDPOINT,
-            params=params,
-            timeout=DEFAULT_TIMEOUT,
-            headers={"Accept": "application/json"},
-        )
-        response.raise_for_status()
-        payload = response.json()
+        payload = _socrata_get(params)
         if not isinstance(payload, list):
             payload = []
         items = [normalize_space_record(item) for item in payload]
+
+        if len(items) < safe_limit:
+            # The page already contains every matching record.
+            summary = summarize_spaces(items)
+            summary_scope = "all"
+            total_available: int | None = len(items)
+        else:
+            aggregate = fetch_aggregate_summary(where_clause)
+            if aggregate is not None:
+                summary = aggregate
+                summary_scope = "all"
+                total_available = aggregate["total_count"]
+            else:
+                summary = summarize_spaces(items)
+                summary_scope = "shown"
+                total_available = fetch_total_count(where_clause)
+
         return {
             "items": items,
-            "summary": summarize_spaces(items),
+            "summary": summary,
+            "summary_scope": summary_scope,
+            "total_available": total_available,
             "using_fallback": False,
+            "sample_size": None,
             "error_message": None,
             "where_clause": where_clause,
             "source_label": "API Socrata en vivo (datos.gov.co)",
         }
     except (requests.RequestException, ValueError):
-        fallback_items = load_fallback_csv(
-            limit=safe_limit,
+        all_records = _read_fallback_records()
+        matching = _filter_fallback_records(
+            all_records,
             query=query,
             municipality=municipality,
             department=department,
             space_type=space_type,
         )
+        sample_size = len(all_records)
         return {
-            "items": fallback_items,
-            "summary": summarize_spaces(fallback_items),
+            "items": matching[:safe_limit],
+            "summary": summarize_spaces(matching),
+            "summary_scope": "all",
+            "total_available": len(matching),
             "using_fallback": True,
+            "sample_size": sample_size,
             "error_message": (
                 "No fue posible conectar con la API de datos.gov.co en este momento. "
-                "Mostrando datos reales de respaldo almacenados localmente (/data/cultural_spaces_sample.csv)."
+                f"Mostrando una muestra real de respaldo guardada localmente "
+                f"({format_thousands(sample_size)} registros descargados de datos.gov.co, "
+                "/data/cultural_spaces_sample.csv). No representa el conjunto completo: "
+                "los totales e indicadores se calculan solo sobre esa muestra."
             ),
             "where_clause": where_clause,
-            "source_label": "Respaldo local CSV (/data/cultural_spaces_sample.csv - datos.gov.co)",
+            "source_label": "Muestra local CSV (/data/cultural_spaces_sample.csv - datos.gov.co)",
         }
