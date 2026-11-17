@@ -4,6 +4,9 @@ import csv
 import io
 from pathlib import Path
 from typing import Any
+import unicodedata
+
+from django.core.cache import cache
 import requests
 
 DATASET_ID = "te39-v28f"
@@ -122,8 +125,14 @@ def build_soql_where(
     municipality: str = "",
     department: str = "",
     space_type: str = "",
+    municipality_names: list[str] | None = None,
 ) -> str:
-    """Construct a safe SoQL $where clause from user filter parameters."""
+    """Construct a safe SoQL $where clause from user filter parameters.
+
+    `municipality_names` are official names from the catalog that match the
+    typed municipality without accents (HU-08). Socrata cannot ignore accents,
+    so they are added with OR: "Medellin" also finds "Medellín".
+    """
     clauses: list[str] = []
 
     safe_query = sanitize_soql_value(query)
@@ -132,7 +141,13 @@ def build_soql_where(
 
     safe_municipality = sanitize_soql_value(municipality)
     if safe_municipality:
-        clauses.append(f"upper(municipio) like upper('%{safe_municipality}%')")
+        municipality_clause = f"upper(municipio) like upper('%{safe_municipality}%')"
+        if municipality_names:
+            quoted_names = ", ".join(
+                "'" + name.replace("'", "''") + "'" for name in municipality_names
+            )
+            municipality_clause = f"({municipality_clause} OR municipio in ({quoted_names}))"
+        clauses.append(municipality_clause)
 
     safe_department = sanitize_soql_value(department)
     if safe_department:
@@ -196,6 +211,20 @@ def summarize_spaces(items: list[dict[str, str]]) -> dict[str, Any]:
     }
 
 
+def strip_accents(text: str) -> str:
+    """Lowercase text without accents: "Medellín" -> "medellin", "Chía" -> "chia"."""
+    decomposed = unicodedata.normalize("NFD", str(text))
+    return "".join(ch for ch in decomposed if unicodedata.category(ch) != "Mn").casefold().strip()
+
+
+def department_key(name: str) -> str:
+    """Comparable key for department names: no accents, case, spaces or punctuation.
+
+    "Bogotá, D. C." and "BOGOTA D.C." both become "bogotadc".
+    """
+    return "".join(ch for ch in strip_accents(name) if ch.isalnum())
+
+
 def _filter_fallback_records(
     records: list[dict[str, str]],
     query: str = "",
@@ -205,7 +234,7 @@ def _filter_fallback_records(
 ) -> list[dict[str, str]]:
     """Apply equivalent case-insensitive filters over local CSV records."""
     q_norm = (query or "").strip().lower()
-    muni_norm = (municipality or "").strip().lower()
+    muni_norm = strip_accents(municipality or "")
     dept_norm = (department or "").strip().lower()
     type_norm = (space_type or "").strip().lower()
 
@@ -213,7 +242,7 @@ def _filter_fallback_records(
     for item in records:
         if q_norm and q_norm not in item["name"].lower():
             continue
-        if muni_norm and muni_norm not in item["municipality"].lower():
+        if muni_norm and muni_norm not in strip_accents(item["municipality"]):
             continue
         if dept_norm and dept_norm != item["department"].lower():
             continue
@@ -392,6 +421,7 @@ def fetch_cultural_spaces(
         municipality=municipality,
         department=department,
         space_type=space_type,
+        municipality_names=resolve_municipality_names(municipality, department),
     )
     params: dict[str, str] = {
         "$limit": str(safe_limit),
@@ -516,6 +546,7 @@ def fetch_spaces_for_export(
         municipality=municipality,
         department=department,
         space_type=space_type,
+        municipality_names=resolve_municipality_names(municipality, department),
     )
     params: dict[str, str] = {
         "$limit": str(max_records),
@@ -559,3 +590,95 @@ def build_spaces_csv(items: list[dict[str, str]], source_label: str) -> str:
             + [attribution]
         )
     return buffer.getvalue()
+
+
+# --- HU-08: municipality catalog, autocomplete and accent tolerance ----------
+
+MUNICIPALITY_CACHE_KEY = "cultural_spaces:municipality_catalog"
+MUNICIPALITY_CACHE_SECONDS = 6 * 60 * 60
+MAX_MUNICIPALITY_MATCHES = 30
+
+
+def _catalog_from_pairs(pairs: list[tuple[Any, Any]]) -> dict[str, dict[str, Any]]:
+    """Group (department, municipality) pairs as {department_key: {"name", "municipalities"}}."""
+    catalog: dict[str, dict[str, Any]] = {}
+    for raw_department, raw_municipality in pairs:
+        department = _clean_field(raw_department, "No especificado")
+        municipality = _clean_field(raw_municipality, "No especificado")
+        if department == "No especificado" or municipality == "No especificado":
+            continue
+        entry = catalog.setdefault(
+            department_key(department), {"name": department, "municipalities": set()}
+        )
+        entry["municipalities"].add(municipality)
+    return {
+        key: {
+            "name": entry["name"],
+            "municipalities": sorted(entry["municipalities"], key=strip_accents),
+        }
+        for key, entry in sorted(catalog.items())
+    }
+
+
+def get_municipality_catalog() -> dict[str, dict[str, Any]]:
+    """Official municipalities per department, from $group=departamento, municipio.
+
+    The catalog is kept in Django's in-memory cache for 6 hours, so the API is
+    asked once and not on every search. If the API fails, the local sample is
+    used and NOT cached, so the next request tries the API again.
+    """
+    cached = cache.get(MUNICIPALITY_CACHE_KEY)
+    if cached is not None:
+        return cached
+    try:
+        rows = _socrata_get(
+            {
+                "$select": "departamento, municipio",
+                "$group": "departamento, municipio",
+                "$limit": str(MAX_GROUP_ROWS),
+            }
+        )
+        if not isinstance(rows, list):
+            raise ValueError("Unexpected catalog payload")
+        catalog = _catalog_from_pairs(
+            [(row.get("departamento"), row.get("municipio")) for row in rows]
+        )
+        if not catalog:
+            raise ValueError("Empty catalog")
+    except (requests.RequestException, ValueError, AttributeError):
+        return _catalog_from_pairs(
+            [(item["department"], item["municipality"]) for item in _read_fallback_records()]
+        )
+    cache.set(MUNICIPALITY_CACHE_KEY, catalog, MUNICIPALITY_CACHE_SECONDS)
+    return catalog
+
+
+def municipality_options(department: str = "") -> list[str]:
+    """Municipalities for the <datalist>: those of the selected department, or all of them."""
+    catalog = get_municipality_catalog()
+    if department:
+        entry = catalog.get(department_key(department))
+        if entry is not None:
+            return entry["municipalities"]
+    names = {name for entry in catalog.values() for name in entry["municipalities"]}
+    return sorted(names, key=strip_accents)
+
+
+def municipality_catalog_for_browser() -> dict[str, list[str]]:
+    """{department_key: [municipalities]} for the script that refreshes the datalist."""
+    return {key: entry["municipalities"] for key, entry in get_municipality_catalog().items()}
+
+
+def resolve_municipality_names(municipality: str = "", department: str = "") -> list[str]:
+    """Official names that contain the typed text when accents are ignored.
+
+    "Medellin" -> ["Medellín"]; "chia" -> ["Chía"]. Limited to the selected
+    department when there is one, and to MAX_MUNICIPALITY_MATCHES names.
+    """
+    typed = strip_accents(sanitize_soql_value(municipality).replace("''", "'"))
+    if not typed:
+        return []
+    matches = [
+        name for name in municipality_options(department) if typed in strip_accents(name)
+    ]
+    return matches[:MAX_MUNICIPALITY_MATCHES]

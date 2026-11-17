@@ -94,6 +94,8 @@ def index(request: HttpRequest) -> HttpResponse:
         "filters": filters,
         "has_active_filters": has_active_filters,
         "empty_search_submitted": empty_search_submitted,
+        "municipality_options": services.municipality_options(filters["departamento"]),
+        "municipality_catalog": services.municipality_catalog_for_browser(),
         "department_choices": services.DEPARTMENT_CHOICES,
         "space_type_choices": services.SPACE_TYPE_CHOICES,
         "dataset_id": services.DATASET_ID,
