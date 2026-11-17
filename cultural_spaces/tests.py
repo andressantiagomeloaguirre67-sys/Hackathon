@@ -1,4 +1,6 @@
 """Automated unit and integration tests for cultural_spaces (HTTP calls mocked)."""
+import csv
+import io
 from unittest.mock import MagicMock, patch
 from django.test import SimpleTestCase
 from django.urls import reverse
@@ -457,3 +459,115 @@ class CulturalSpacesTests(SimpleTestCase):
         listed = [item["name"] for item in response.context["spaces"]]
         self.assertEqual(listed, all_names[40:80])
         self.assertTrue(response.context["using_fallback"])
+
+    # --- HU-14: CSV export -------------------------------------------------
+
+    def _read_csv(self, response) -> list[list[str]]:
+        text = response.content.decode("utf-8")
+        self.assertTrue(text.startswith("\ufeff"), "CSV must start with a UTF-8 BOM for Excel")
+        return list(csv.reader(io.StringIO(text.lstrip("\ufeff"))))
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_export_csv_downloads_filtered_results_with_spanish_headers(
+        self, mock_get: MagicMock
+    ) -> None:
+        """The download uses the active filters and returns a CSV with Spanish headers and attribution."""
+        mock_get.return_value = self._mock_response(
+            [
+                {
+                    "tipo_lugar": "Biblioteca",
+                    "divipola": "05001",
+                    "departamento": "Antioquia",
+                    "municipio": "Medellín",
+                    "nombre_del_lugar": "BIBLIOTECA PUBLICA PILOTO",
+                    "descripci_n": "Biblioteca Pública registrada en RNBP",
+                    "direcci_n_f_sica": "CARRERA 64 # 50 - 32",
+                    "fuente": "Red Nacional de Bibliotecas Públicas",
+                }
+            ]
+        )
+
+        response = self.client.get(
+            reverse("cultural_spaces:export_csv"),
+            {"departamento": "Antioquia", "tipo_lugar": "Biblioteca"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertEqual(
+            response["Content-Disposition"],
+            'attachment; filename="espacios_culturales_te39-v28f.csv"',
+        )
+        rows = self._read_csv(response)
+        self.assertEqual(
+            rows[0],
+            [
+                "Nombre", "Tipo de espacio", "Departamento", "Municipio", "Dirección",
+                "Descripción", "Registro de origen", "DIVIPOLA", "Fuente de los datos",
+            ],
+        )
+        self.assertEqual(rows[1][0], "BIBLIOTECA PUBLICA PILOTO")
+        self.assertEqual(rows[1][3], "Medellín")
+        self.assertIn("datos.gov.co (te39-v28f)", rows[1][8])
+        self.assertIn("API Socrata en vivo", rows[1][8])
+        params = mock_get.call_args.kwargs["params"]
+        self.assertEqual(params["$limit"], str(services.EXPORT_MAX_RECORDS))
+        self.assertIn("upper(departamento) = upper('Antioquia')", params["$where"])
+        self.assertIn("upper(tipo_lugar) = upper('Biblioteca')", params["$where"])
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_export_csv_neutralizes_spreadsheet_formulas(self, mock_get: MagicMock) -> None:
+        """Values starting with =, +, - or @ are prefixed with ' so Excel does not run them."""
+        mock_get.return_value = self._mock_response(
+            [{"nombre_del_lugar": '=HYPERLINK("http://example.com")', "municipio": "+57"}]
+        )
+
+        rows = self._read_csv(self.client.get(reverse("cultural_spaces:export_csv")))
+
+        self.assertEqual(rows[1][0], '\'=HYPERLINK("http://example.com")')
+        self.assertEqual(rows[1][3], "'+57")
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_export_csv_with_no_matches_returns_only_headers(self, mock_get: MagicMock) -> None:
+        """A search with no matches downloads a valid CSV with the header row only."""
+        mock_get.return_value = self._mock_response([])
+
+        rows = self._read_csv(
+            self.client.get(reverse("cultural_spaces:export_csv"), {"q": "TerminoInexistenteXYZ999"})
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][0], "Nombre")
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_export_csv_uses_local_sample_when_api_fails(self, mock_get: MagicMock) -> None:
+        """Offline, the download contains the matching sample records and says they come from the sample."""
+        mock_get.side_effect = requests.ConnectionError("Simulated network outage")
+        expected = services._filter_fallback_records(
+            services._read_fallback_records(), space_type="Biblioteca"
+        )
+
+        rows = self._read_csv(
+            self.client.get(reverse("cultural_spaces:export_csv"), {"tipo_lugar": "Biblioteca"})
+        )
+
+        self.assertEqual(len(rows) - 1, len(expected))
+        self.assertTrue(all(row[1] == "Biblioteca" for row in rows[1:]))
+        self.assertIn("Muestra local CSV", rows[1][8])
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_index_shows_download_button_with_current_filters(self, mock_get: MagicMock) -> None:
+        """The results page offers 'Descargar CSV' linked to the same filters, and warns when capped."""
+        mock_get.side_effect = [
+            self._mock_response(self._make_records(services.DEFAULT_LIMIT)),
+            self._type_aggregate(7558),
+            self._place_aggregate(),
+        ]
+
+        response = self.client.get(reverse("cultural_spaces:index"), {"departamento": "Antioquia"})
+
+        self.assertContains(
+            response, 'href="/exportar-csv/?departamento=Antioquia"', html=False
+        )
+        self.assertContains(response, "Descargar CSV")
+        self.assertContains(response, "Descarga los primeros 1.000 de 7.558 resultados")

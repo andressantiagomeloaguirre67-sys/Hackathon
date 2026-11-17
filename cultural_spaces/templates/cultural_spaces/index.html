@@ -158,6 +158,15 @@
             border-radius: 0.5rem;
             margin-bottom: 1.25rem;
         }
+        .export-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
         .pagination {
             display: flex;
             align-items: center;
@@ -346,6 +355,12 @@
         </section>
 
         {% if spaces %}
+        <div class="export-bar">
+            <a href="{% url 'cultural_spaces:export_csv' %}{% if filters_query %}?{{ filters_query }}{% endif %}" class="btn-secondary" download>Descargar CSV</a>
+            <span>
+                {% if export_is_truncated %}Descarga los primeros {{ export_max_display }} de {{ total_available_display }} resultados de esta búsqueda.{% else %}Descarga todos los resultados de esta búsqueda.{% endif %}
+            </span>
+        </div>
         <div class="cards-grid">
             {% for space in spaces %}
             <article class="space-card">

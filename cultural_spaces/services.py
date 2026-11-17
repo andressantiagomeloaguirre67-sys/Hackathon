@@ -1,6 +1,7 @@
 """Service layer for reading, cleaning, and filtering cultural spaces from datos.gov.co."""
 from collections import Counter
 import csv
+import io
 from pathlib import Path
 from typing import Any
 import requests
@@ -471,3 +472,90 @@ def fetch_cultural_spaces(
             "where_clause": where_clause,
             "source_label": "Muestra local CSV (/data/cultural_spaces_sample.csv - datos.gov.co)",
         }
+
+
+# --- HU-07/HU-14: CSV export ---------------------------------------------------
+
+EXPORT_MAX_RECORDS = 1000
+EXPORT_FILENAME = f"espacios_culturales_{DATASET_ID}.csv"
+CSV_EXPORT_COLUMNS = [
+    ("name", "Nombre"),
+    ("space_type", "Tipo de espacio"),
+    ("department", "Departamento"),
+    ("municipality", "Municipio"),
+    ("address", "Dirección"),
+    ("description", "Descripción"),
+    ("source", "Registro de origen"),
+    ("divipola", "DIVIPOLA"),
+]
+FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def safe_csv_cell(value: str) -> str:
+    """Neutralize values that a spreadsheet would run as a formula (CSV injection)."""
+    text = str(value)
+    if text.startswith(FORMULA_PREFIXES):
+        return "'" + text
+    return text
+
+
+def fetch_spaces_for_export(
+    query: str = "",
+    municipality: str = "",
+    department: str = "",
+    space_type: str = "",
+    max_records: int = EXPORT_MAX_RECORDS,
+) -> dict[str, Any]:
+    """Fetch up to `max_records` spaces matching the filters, for the CSV download.
+
+    Uses the same filters and order as the listing, in one request with a larger
+    $limit; falls back to the local sample when the API is unreachable.
+    """
+    where_clause = build_soql_where(
+        query=query,
+        municipality=municipality,
+        department=department,
+        space_type=space_type,
+    )
+    params: dict[str, str] = {
+        "$limit": str(max_records),
+        "$order": "nombre_del_lugar ASC, :id ASC",
+    }
+    if where_clause:
+        params["$where"] = where_clause
+    try:
+        payload = _socrata_get(params)
+        if not isinstance(payload, list):
+            payload = []
+        return {
+            "items": [normalize_space_record(item) for item in payload],
+            "using_fallback": False,
+            "source_label": "API Socrata en vivo (datos.gov.co)",
+        }
+    except (requests.RequestException, ValueError):
+        matching = _filter_fallback_records(
+            _read_fallback_records(),
+            query=query,
+            municipality=municipality,
+            department=department,
+            space_type=space_type,
+        )
+        return {
+            "items": matching[:max_records],
+            "using_fallback": True,
+            "source_label": "Muestra local CSV (/data/cultural_spaces_sample.csv - datos.gov.co)",
+        }
+
+
+def build_spaces_csv(items: list[dict[str, str]], source_label: str) -> str:
+    """Build the CSV text: Spanish headers, one row per space, and the official attribution."""
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow([header for _, header in CSV_EXPORT_COLUMNS] + ["Fuente de los datos"])
+    attribution = f"{PUBLISHER_ENTITY} - datos.gov.co ({DATASET_ID}) - {source_label}"
+    for item in items:
+        writer.writerow(
+            [safe_csv_cell(item.get(key, "")) for key, _ in CSV_EXPORT_COLUMNS]
+            + [attribution]
+        )
+    return buffer.getvalue()
