@@ -1,5 +1,8 @@
 """Automated unit and integration tests for cultural_spaces (HTTP calls mocked)."""
+import csv
+import io
 from unittest.mock import MagicMock, patch
+from django.core.cache import cache
 from django.test import SimpleTestCase
 from django.urls import reverse
 import requests
@@ -7,7 +10,23 @@ import requests
 from . import services
 
 
+TEST_CATALOG = {
+    "antioquia": {"name": "Antioquia", "municipalities": ["Envigado", "Medellín"]},
+    "cesar": {"name": "Cesar", "municipalities": ["Curumaní"]},
+    "cundinamarca": {"name": "Cundinamarca", "municipalities": ["Chía"]},
+}
+
+
 class CulturalSpacesTests(SimpleTestCase):
+    def setUp(self) -> None:
+        # The municipality catalog (HU-08) is tested in MunicipalityCatalogTests;
+        # here it is fixed so it does not consume the mocked HTTP responses.
+        patcher = patch(
+            "cultural_spaces.services.get_municipality_catalog", return_value=TEST_CATALOG
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     """Test suite covering the 4 mandatory scenarios plus SoQL sanitization and CSV fallback."""
 
     def _mock_response(self, json_payload: list[dict]) -> MagicMock:
@@ -457,3 +476,243 @@ class CulturalSpacesTests(SimpleTestCase):
         listed = [item["name"] for item in response.context["spaces"]]
         self.assertEqual(listed, all_names[40:80])
         self.assertTrue(response.context["using_fallback"])
+
+    # --- HU-14: CSV export -------------------------------------------------
+
+    def _read_csv(self, response) -> list[list[str]]:
+        text = response.content.decode("utf-8")
+        self.assertTrue(text.startswith("\ufeff"), "CSV must start with a UTF-8 BOM for Excel")
+        return list(csv.reader(io.StringIO(text.lstrip("\ufeff"))))
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_export_csv_downloads_filtered_results_with_spanish_headers(
+        self, mock_get: MagicMock
+    ) -> None:
+        """The download uses the active filters and returns a CSV with Spanish headers and attribution."""
+        mock_get.return_value = self._mock_response(
+            [
+                {
+                    "tipo_lugar": "Biblioteca",
+                    "divipola": "05001",
+                    "departamento": "Antioquia",
+                    "municipio": "Medellín",
+                    "nombre_del_lugar": "BIBLIOTECA PUBLICA PILOTO",
+                    "descripci_n": "Biblioteca Pública registrada en RNBP",
+                    "direcci_n_f_sica": "CARRERA 64 # 50 - 32",
+                    "fuente": "Red Nacional de Bibliotecas Públicas",
+                }
+            ]
+        )
+
+        response = self.client.get(
+            reverse("cultural_spaces:export_csv"),
+            {"departamento": "Antioquia", "tipo_lugar": "Biblioteca"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertEqual(
+            response["Content-Disposition"],
+            'attachment; filename="espacios_culturales_te39-v28f.csv"',
+        )
+        rows = self._read_csv(response)
+        self.assertEqual(
+            rows[0],
+            [
+                "Nombre", "Tipo de espacio", "Departamento", "Municipio", "Dirección",
+                "Descripción", "Registro de origen", "DIVIPOLA", "Fuente de los datos",
+            ],
+        )
+        self.assertEqual(rows[1][0], "BIBLIOTECA PUBLICA PILOTO")
+        self.assertEqual(rows[1][3], "Medellín")
+        self.assertIn("datos.gov.co (te39-v28f)", rows[1][8])
+        self.assertIn("API Socrata en vivo", rows[1][8])
+        params = mock_get.call_args.kwargs["params"]
+        self.assertEqual(params["$limit"], str(services.EXPORT_MAX_RECORDS))
+        self.assertIn("upper(departamento) = upper('Antioquia')", params["$where"])
+        self.assertIn("upper(tipo_lugar) = upper('Biblioteca')", params["$where"])
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_export_csv_neutralizes_spreadsheet_formulas(self, mock_get: MagicMock) -> None:
+        """Values starting with =, +, - or @ are prefixed with ' so Excel does not run them."""
+        mock_get.return_value = self._mock_response(
+            [{"nombre_del_lugar": '=HYPERLINK("http://example.com")', "municipio": "+57"}]
+        )
+
+        rows = self._read_csv(self.client.get(reverse("cultural_spaces:export_csv")))
+
+        self.assertEqual(rows[1][0], '\'=HYPERLINK("http://example.com")')
+        self.assertEqual(rows[1][3], "'+57")
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_export_csv_with_no_matches_returns_only_headers(self, mock_get: MagicMock) -> None:
+        """A search with no matches downloads a valid CSV with the header row only."""
+        mock_get.return_value = self._mock_response([])
+
+        rows = self._read_csv(
+            self.client.get(reverse("cultural_spaces:export_csv"), {"q": "TerminoInexistenteXYZ999"})
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][0], "Nombre")
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_export_csv_uses_local_sample_when_api_fails(self, mock_get: MagicMock) -> None:
+        """Offline, the download contains the matching sample records and says they come from the sample."""
+        mock_get.side_effect = requests.ConnectionError("Simulated network outage")
+        expected = services._filter_fallback_records(
+            services._read_fallback_records(), space_type="Biblioteca"
+        )
+
+        rows = self._read_csv(
+            self.client.get(reverse("cultural_spaces:export_csv"), {"tipo_lugar": "Biblioteca"})
+        )
+
+        self.assertEqual(len(rows) - 1, len(expected))
+        self.assertTrue(all(row[1] == "Biblioteca" for row in rows[1:]))
+        self.assertIn("Muestra local CSV", rows[1][8])
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_index_shows_download_button_with_current_filters(self, mock_get: MagicMock) -> None:
+        """The results page offers 'Descargar CSV' linked to the same filters, and warns when capped."""
+        mock_get.side_effect = [
+            self._mock_response(self._make_records(services.DEFAULT_LIMIT)),
+            self._type_aggregate(7558),
+            self._place_aggregate(),
+        ]
+
+        response = self.client.get(reverse("cultural_spaces:index"), {"departamento": "Antioquia"})
+
+        self.assertContains(
+            response, 'href="/exportar-csv/?departamento=Antioquia"', html=False
+        )
+        self.assertContains(response, "Descargar CSV")
+        self.assertContains(response, "Descarga los primeros 1.000 de 7.558 resultados")
+
+    # --- HU-08: accent-tolerant municipality search and datalist -----------
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_municipality_without_accent_finds_official_name(self, mock_get: MagicMock) -> None:
+        """Typing "Medellin" also queries the official "Medellín" from the catalog."""
+        mock_get.return_value = self._mock_response(self._make_records(2))
+
+        self.client.get(reverse("cultural_spaces:index"), {"municipio": "medellin"})
+
+        where = mock_get.call_args_list[0].kwargs["params"]["$where"]
+        self.assertEqual(
+            where,
+            "(upper(municipio) like upper('%medellin%') OR municipio in ('Medellín'))",
+        )
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_municipality_matches_respect_selected_department(self, mock_get: MagicMock) -> None:
+        """With a department selected, only that department's names are added."""
+        mock_get.return_value = self._mock_response([])
+
+        self.client.get(
+            reverse("cultural_spaces:index"), {"municipio": "chia", "departamento": "Antioquia"}
+        )
+
+        where = mock_get.call_args_list[0].kwargs["params"]["$where"]
+        self.assertNotIn("Chía", where)
+        self.assertIn("upper(municipio) like upper('%chia%')", where)
+
+    def test_official_names_with_quotes_are_escaped(self) -> None:
+        """Catalog names are escaped like user input before entering $where."""
+        where = services.build_soql_where(
+            municipality="san", municipality_names=["San Andrés de Tumaco", "Villa O'Neil"]
+        )
+        self.assertIn("municipio in ('San Andrés de Tumaco', 'Villa O''Neil')", where)
+
+    def test_fallback_filter_ignores_accents(self) -> None:
+        """Offline, "curumani" finds "Curumaní" in the local sample."""
+        records = [
+            services.normalize_space_record({"municipio": "Curumaní", "nombre_del_lugar": "A"}),
+            services.normalize_space_record({"municipio": "Cali", "nombre_del_lugar": "B"}),
+        ]
+        filtered = services._filter_fallback_records(records, municipality="curumani")
+        self.assertEqual([item["municipality"] for item in filtered], ["Curumaní"])
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_index_renders_datalist_for_selected_department(self, mock_get: MagicMock) -> None:
+        """The municipality field is linked to a <datalist> with the department's official names."""
+        mock_get.return_value = self._mock_response([])
+
+        response = self.client.get(reverse("cultural_spaces:index"), {"departamento": "Antioquia"})
+
+        self.assertContains(response, 'list="municipios-sugeridos"', html=False)
+        self.assertEqual(response.context["municipality_options"], ["Envigado", "Medellín"])
+        self.assertContains(response, '<option value="Medellín"></option>', html=False)
+        self.assertNotContains(response, '<option value="Chía"></option>', html=False)
+        self.assertContains(response, 'id="municipios-por-departamento"', html=False)
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_municipality_field_is_an_accessible_combobox(self, mock_get: MagicMock) -> None:
+        """The styled suggestion list exposes ARIA combobox/listbox roles for screen readers."""
+        mock_get.return_value = self._mock_response([])
+
+        response = self.client.get(reverse("cultural_spaces:index"))
+
+        self.assertContains(response, 'role="combobox"', html=False)
+        self.assertContains(response, 'aria-controls="municipios-lista"', html=False)
+        self.assertContains(response, 'aria-autocomplete="list"', html=False)
+        self.assertContains(
+            response,
+            '<ul id="municipios-lista" class="suggestions" role="listbox" aria-label="Municipios sugeridos" hidden></ul>',
+            html=False,
+        )
+
+
+class MunicipalityCatalogTests(SimpleTestCase):
+    """HU-08: the catalog comes from a grouped query and is cached in memory."""
+
+    def setUp(self) -> None:
+        cache.clear()
+        self.addCleanup(cache.clear)
+
+    def _response(self, payload) -> MagicMock:
+        response = MagicMock()
+        response.json.return_value = payload
+        response.raise_for_status.return_value = None
+        return response
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_catalog_uses_grouped_query_and_is_cached(self, mock_get: MagicMock) -> None:
+        """One $group query builds the catalog; the second call is served from cache."""
+        mock_get.return_value = self._response(
+            [
+                {"departamento": "Antioquia", "municipio": "Medellín"},
+                {"departamento": "Antioquia", "municipio": "Envigado"},
+                {"departamento": "Antioquia", "municipio": "Sin Dato"},
+                {"departamento": "Cesar", "municipio": "Curumaní"},
+            ]
+        )
+
+        first = services.get_municipality_catalog()
+        second = services.get_municipality_catalog()
+
+        self.assertEqual(mock_get.call_count, 1)
+        params = mock_get.call_args.kwargs["params"]
+        self.assertEqual(params["$group"], "departamento, municipio")
+        self.assertEqual(params["$select"], "departamento, municipio")
+        self.assertEqual(first["antioquia"]["municipalities"], ["Envigado", "Medellín"])
+        self.assertEqual(second, first)
+
+    @patch("cultural_spaces.services.requests.get")
+    def test_catalog_falls_back_to_sample_without_caching_the_failure(
+        self, mock_get: MagicMock
+    ) -> None:
+        """If the API fails, the sample is used and the next call tries the API again."""
+        mock_get.side_effect = requests.ConnectionError("Simulated network outage")
+
+        catalog = services.get_municipality_catalog()
+        services.get_municipality_catalog()
+
+        self.assertTrue(catalog, "The local sample should provide municipalities")
+        self.assertEqual(mock_get.call_count, 2)
+
+    def test_department_keys_ignore_accents_and_punctuation(self) -> None:
+        """Department names written in different ways match the same catalog entry."""
+        self.assertEqual(services.department_key("Bogotá, D. C."), "bogotadc")
+        self.assertEqual(services.department_key("BOGOTA D.C."), "bogotadc")
+        self.assertEqual(services.strip_accents("Chía"), "chia")

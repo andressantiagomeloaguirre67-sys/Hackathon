@@ -6,4 +6,5 @@ app_name = "cultural_spaces"
 
 urlpatterns = [
     path("", views.index, name="index"),
+    path("exportar-csv/", views.export_csv, name="export_csv"),
 ]

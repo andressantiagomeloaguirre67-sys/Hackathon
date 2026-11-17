@@ -83,6 +83,10 @@ def index(request: HttpRequest) -> HttpResponse:
         "next_page": page + 1,
         "page_out_of_range": page_out_of_range,
         "filters_query": filters_querystring(filters),
+        "export_max_display": services.format_thousands(services.EXPORT_MAX_RECORDS),
+        "export_is_truncated": (
+            total_available is not None and total_available > services.EXPORT_MAX_RECORDS
+        ),
         "using_fallback": result["using_fallback"],
         "sample_size": result["sample_size"],
         "error_message": result["error_message"],
@@ -90,6 +94,8 @@ def index(request: HttpRequest) -> HttpResponse:
         "filters": filters,
         "has_active_filters": has_active_filters,
         "empty_search_submitted": empty_search_submitted,
+        "municipality_options": services.municipality_options(filters["departamento"]),
+        "municipality_catalog": services.municipality_catalog_for_browser(),
         "department_choices": services.DEPARTMENT_CHOICES,
         "space_type_choices": services.SPACE_TYPE_CHOICES,
         "dataset_id": services.DATASET_ID,
@@ -98,3 +104,19 @@ def index(request: HttpRequest) -> HttpResponse:
         "publisher_entity": services.PUBLISHER_ENTITY,
     }
     return render(request, "cultural_spaces/index.html", context)
+
+
+def export_csv(request: HttpRequest) -> HttpResponse:
+    """Download the spaces that match the current filters as a CSV file (up to EXPORT_MAX_RECORDS)."""
+    filters = read_filters(request)
+    result = services.fetch_spaces_for_export(
+        query=filters["q"],
+        municipality=filters["municipio"],
+        department=filters["departamento"],
+        space_type=filters["tipo_lugar"],
+    )
+    # The BOM (\ufeff) lets Excel on Windows open the file with accents intact.
+    content = "\ufeff" + services.build_spaces_csv(result["items"], result["source_label"])
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{services.EXPORT_FILENAME}"'
+    return response
