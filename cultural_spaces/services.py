@@ -271,23 +271,6 @@ def count_fallback_records(csv_path: Path = FALLBACK_CSV_PATH) -> int:
     return len(_read_fallback_records(csv_path))
 
 
-def load_fallback_csv(
-    csv_path: Path = FALLBACK_CSV_PATH,
-    limit: int = DEFAULT_LIMIT,
-    query: str = "",
-    municipality: str = "",
-    department: str = "",
-    space_type: str = "",
-) -> list[dict[str, str]]:
-    """Read real backup records from the local CSV file when the API is unreachable."""
-    filtered = _filter_fallback_records(
-        _read_fallback_records(csv_path),
-        query=query,
-        municipality=municipality,
-        department=department,
-        space_type=space_type,
-    )
-    return filtered[:limit]
 
 
 MAX_GROUP_ROWS = 5000

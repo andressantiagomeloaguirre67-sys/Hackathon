@@ -18,7 +18,7 @@ Al analizar el sistema capa por capa (**Ingesta y Resiliencia de Datos**, **Sani
 | **HU-03** *(Issue #3)* | 3. Analítica en Memoria | `HU-03: Resumen estadístico dinámico de la oferta cultural en la consulta actual` | `Medium` | `Juliana` | `services.py` (`summarize_spaces`) | `Done` |
 | **HU-04** | 2. Seguridad SoQL | `HU-04: Saneamiento de entradas contra inyección SoQL ($where) y acotamiento de $limit` | `High` | `Santiago` | `services.py` (`sanitize_soql_value`, `clamp_limit`) | `Done` |
 | **HU-05** | 2. Limpieza de Datos | `HU-05: Normalización de registros con datos ausentes o comodines ("Sin Dato", "No registra")` | `High` | `Juliana` | `services.py` (`normalize_space_record`, `_clean_field`) + `PR #4` | `In Review` |
-| **HU-06** | 1. Resiliencia / Fallback | `HU-06: Conmutación automática (Fallback) a CSV local real ante fallos o timeouts de red` | `High` | `Andres` | `services.py` (`load_fallback_csv`), `/data/cultural_spaces_sample.csv` | `Done` |
+| **HU-06** | 1. Resiliencia / Fallback | `HU-06: Conmutación automática (Fallback) a CSV local real ante fallos o timeouts de red` | `High` | `Andres` | `services.py` (`_read_fallback_records`, `_filter_fallback_records`), `/data/cultural_spaces_sample.csv` | `Done` |
 | **HU-09** | 1. Gobernanza de Datos | `HU-09: Trazabilidad de fuente activa (API en vivo vs CSV local) y atribución oficial MinCultura` | `Medium` | `Andres` | `views.py`, `index.html` (`source_label`, `publisher_entity`) | `Done` |
 | **HU-10** | 4. Estados de Interfaz | `HU-10: Gestión diferenciada de búsqueda en blanco, estado vacío con detalle de filtros y restablecimiento` | `High` | `Santiago` | `views.py` (`empty_search_submitted`, `has_active_filters`), `index.html` | `Done` |
 | **HU-11** | 4. UI/UX y Accesibilidad | `HU-11: Interfaz responsiva (CSS Grid) con semántica HTML5 y atributos de accesibilidad ARIA` | `Medium` | `Juliana` | `templates/cultural_spaces/index.html` (`role="status"`, `aria-label`) | `Done` |
@@ -209,7 +209,7 @@ Para garantizar alta disponibilidad durante demostraciones o caídas del portal 
 
 ### Criterios de Aceptación
 - [x] El archivo `/data/cultural_spaces_sample.csv` contiene registros reales descargados del dataset `te39-v28f` con las mismas columnas oficiales.
-- [x] `load_fallback_csv` lee el archivo con `csv.DictReader`, normaliza cada fila con `normalize_space_record` y aplica `_filter_fallback_records` respetando los filtros del usuario y el límite solicitado.
+- [x] `_read_fallback_records` lee el archivo con `csv.DictReader` y normaliza cada fila con `normalize_space_record`; `_filter_fallback_records` aplica los filtros del usuario y el mismo orden de la API.
 - [x] El diccionario de respuesta activa `using_fallback = True` y expone `error_message` para informar al usuario en pantalla.
 - [x] Verificado con `test_api_failure_falls_back_to_local_csv`.
 ```
